@@ -9,8 +9,8 @@ export class CultivosController {
   constructor(private readonly cultivosService: CultivosService) {}
 
   @Post()
-  create(@Body() createCultivoDto: CreateCultivoDto) {
-    return this.cultivosService.create(createCultivoDto);
+  create(@Body() dto: CreateCultivoDto) {
+    return this.cultivosService.create(dto);
   }
 
   @Get()
@@ -24,12 +24,17 @@ export class CultivosController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCultivoDto: UpdateCultivoDto) {
-    return this.cultivosService.update(+id, updateCultivoDto);
+  update(@Param('id') id: string, @Body() dto: UpdateCultivoDto) {
+    return this.cultivosService.update(+id, dto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.cultivosService.remove(+id);
+  }
+
+  @Patch('restore/:id')
+  restore(@Param('id') id: string) {
+    return this.cultivosService.restore(+id);
   }
 }

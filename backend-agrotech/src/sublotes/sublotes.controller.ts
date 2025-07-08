@@ -8,8 +8,8 @@ export class SublotesController {
   constructor(private readonly sublotesService: SublotesService) {}
 
   @Post()
-  create(@Body() createSubloteDto: CreateSubloteDto) {
-    return this.sublotesService.create(createSubloteDto);
+  create(@Body() dto: CreateSubloteDto) {
+    return this.sublotesService.create(dto);
   }
 
   @Get()
@@ -23,12 +23,17 @@ export class SublotesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSubloteDto: UpdateSubloteDto) {
-    return this.sublotesService.update(+id, updateSubloteDto);
+  update(@Param('id') id: string, @Body() dto: UpdateSubloteDto) {
+    return this.sublotesService.update(+id, dto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.sublotesService.remove(+id);
+  }
+
+  @Patch('restore/:id')
+  restore(@Param('id') id: string) {
+    return this.sublotesService.restore(+id); 
   }
 }

@@ -23,12 +23,20 @@ export class TipoCultivoController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTipoCultivoDto: UpdateTipoCultivoDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateTipoCultivoDto: UpdateTipoCultivoDto,
+  ) {
     return this.tipoCultivoService.update(+id, updateTipoCultivoDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.tipoCultivoService.remove(+id);
+  }
+
+  @Patch('restore/:id')
+  restore(@Param('id') id: string) {
+    return this.tipoCultivoService.restore(+id);
   }
 }

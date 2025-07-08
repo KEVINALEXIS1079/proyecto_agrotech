@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateSubloteDto } from './dto/create-sublote.dto';
 import { UpdateSubloteDto } from './dto/update-sublote.dto';
-import { Repository } from 'typeorm';
+import { Repository, UpdateResult} from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Sublote } from './entities/sublote.entity';
 
@@ -12,9 +12,9 @@ export class SublotesService {
     private readonly subloteRepository: Repository<Sublote>,
   ) {}
 
-  async create(createSubloteDto: CreateSubloteDto) {
-    const lote = this.subloteRepository.create(createSubloteDto);
-    return await this.subloteRepository.save(lote);
+  async create(dto: CreateSubloteDto) {
+    const nuevoLote = this.subloteRepository.create(dto);
+    return await this.subloteRepository.save(nuevoLote);
   }
 
   async findAll() {
@@ -25,12 +25,17 @@ export class SublotesService {
     return await this.subloteRepository.findOneBy({ id_sublote_pk });
   }
 
-  async update(id_sublote_pk: number, updateSubloteDto: UpdateSubloteDto) {
-    return await this.subloteRepository.update(id_sublote_pk, updateSubloteDto);
+  async update(id_sublote_pk: number, dto: UpdateSubloteDto) {
+    return await this.subloteRepository.update(id_sublote_pk, dto);
   }
 
   async remove(id_sublote_pk: number) {
     return await this.subloteRepository.softDelete({ id_sublote_pk }); //se le pasa el id
     // return await this.loteRepository.softRemove({lote})  // se le pasa la instancia
+  }
+
+  //resturar los datos eliminados
+  async restore(id_sublote_pk: number): Promise<UpdateResult> {
+    return this.subloteRepository.restore({ id_sublote_pk });
   }
 }

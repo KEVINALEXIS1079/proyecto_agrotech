@@ -16,13 +16,13 @@ import { TipoCultivoModule } from './tipo-cultivo/tipo-cultivo.module';
 
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'host.docker.internal',
+      host: 'localhost',
       port: 5432,
       username: 'agrotech',
       password: '123',
       database: 'agrotech',
       autoLoadEntities: true,
-      synchronize: false,
+      synchronize: true,
       retryDelay: 3000,
       retryAttempts: 10,
     }),
