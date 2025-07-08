@@ -6,26 +6,26 @@ import { LotesModule } from './lotes/lotes.module';
 import { SublotesModule } from './sublotes/sublotes.module';
 import { CultivosModule } from './cultivos/cultivos.module';
 import { TipoCultivoModule } from './tipo-cultivo/tipo-cultivo.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
-  imports: [
-    LotesModule,
-    SublotesModule,
-    CultivosModule,
-    TipoCultivoModule,
+  imports:[
+    UsuariosModule,
+    RolesModule,
 
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'host.docker.internal',
-      port: 5432,
-      username: 'agrotech',
-      password: '123',
-      database: 'agrotech',
+      host:'localhost',
+      port:5432,
+      username:'agrotech',
+      password:'123',
+      database:'agrotech',
       autoLoadEntities: true,
-      synchronize: false,
-      retryDelay: 3000,
-      retryAttempts: 10,
-    }),
+      synchronize:true,
+      retryDelay:3000,
+      retryAttempts:10,
+    })
   ],
   controllers: [AppController],
   providers: [AppService],
