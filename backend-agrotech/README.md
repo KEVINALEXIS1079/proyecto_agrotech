@@ -1,98 +1,213 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+# 🌿 Agrotech Backend
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Este repositorio contiene el backend de la aplicación **Agrotech**, desarrollado con **NestJS**, **TypeORM** y **PostgreSQL**.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 📦 Estructura del Proyecto
 
-## Project setup
-
-```bash
-$ npm install
+```
+backend_agrotech/
+├── src/
+│   ├── tipo-cultivo/
+│   ├── cultivos/
+│   ├── sublotes/
+│   ├── lotes/
+│   ├── migrations/
+│   └── data-source.ts
+├── docker-compose.yml
+├── package.json
+└── tsconfig.json
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## ⚙️ Configuración de TypeORM
 
-# watch mode
-$ npm run start:dev
+**Archivo principal de configuración:** `src/data-source.ts`
 
-# production mode
-$ npm run start:prod
+```ts
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: 'host.docker.internal',
+  port: 5432,
+  username: 'agrotech',
+  password: '123',
+  database: 'agrotech',
+  synchronize: false,
+  logging: false,
+  entities: [TipoCultivo, Cultivo, Sublote, Lote],
+  migrations: ['src/migrations/**/*.ts'],
+  subscribers: [],
+});
 ```
 
-## Run tests
+> ⚠️ **IMPORTANTE:** Asegúrate de mantener `synchronize: false` si estás usando migraciones, para evitar que TypeORM modifique el esquema automáticamente.  
+> Utiliza `autoLoadEntities: true` en el `AppModule` si no estás cargando las entidades manualmente en `data-source.ts`.
 
-```bash
-# unit tests
-$ npm run test
+---
 
-# e2e tests
-$ npm run test:e2e
+## 🔧 Scripts disponibles (`package.json`)
 
-# test coverage
-$ npm run test:cov
+```json
+"scripts": {
+  "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/data-source.ts",
+  "migrations:generate": "npm run typeorm -- migration:generate -p",
+  "migrations:run": "npm run typeorm -- migration:run",
+  "migration:create": "npm run typeorm -- migration:create"
+}
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 📜 Comandos útiles de migraciones
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- 🔨 **Generar migración automática con nombre:**
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run migrations:generate src/migrations/InitialMigration
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- 📝 **Crear migración vacía:**
 
-## Resources
+```bash
+npm run migration:create -- src/migrations/NombreMigracion
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+- 🚀 **Ejecutar migraciones pendientes:**
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+npm run migrations:run
+```
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 🐳 Docker - Servicios y configuración
 
-## Stay in touch
+### 🧾 docker-compose.yml
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```yaml
+version: '3.9'
 
-## License
+services:
+  postgres:
+    image: postgres:13
+    container_name: agrotech_database
+    environment:
+      POSTGRES_USER: agrotech
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: agrotech
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+
+volumes:
+  pg_data:
+```
+
+---
+
+### 🐚 Comandos Docker útiles
+
+- ✅ Levantar servicios:
+```bash
+docker compose up -d
+```
+
+- ❌ Detener servicios:
+```bash
+docker compose down
+```
+
+- 💣 Eliminar contenedores + volúmenes:
+```bash
+docker compose down -v
+```
+
+- 🔄 Reiniciar servicios:
+```bash
+docker compose restart
+```
+
+- 🧐 Ver contenedores activos:
+```bash
+docker ps
+```
+
+- 🐘 Ingresar a PostgreSQL dentro del contenedor:
+```bash
+docker exec -it agrotech_database psql -U agrotech -d agrotech
+```
+
+---
+
+## 🌐 Acceder a pgAdmin
+
+1. Abre tu navegador y entra a: [http://localhost:8080](http://localhost:8080)
+2. Credenciales:
+   - **Email:** `admin@admin.com`
+   - **Contraseña:** `admin`
+3. Crear nuevo servidor:
+   - **Name:** `PostgresDocker`
+   - **Host:** `postgres` (nombre del servicio)
+   - **Port:** `5432`
+   - **DB:** `agrotech`
+   - **User:** `agrotech`
+   - **Password:** `123`
+4. Visualizar la base de datos en pgAdmin:
+**AppModule.ts:** Coloca temporalmente `synchronize: true` en la configuración de `TypeOrmModule.forRoot()` para que TypeORM cree automáticamente las tablas según tus entidades.
+
+Una vez cargadas las tablas en la base de datos, desactiva esta opción `synchronize: false` para evitar pérdida de datos o conflictos en producción.
+
+---
+
+## 🧯 Cambiar entre PostgreSQL Nativo y Docker
+
+### 🔌 Desactivar PostgreSQL Nativo para usar Docker
+
+#### 1. Detener el servicio de PostgreSQL nativo
+
+- **Windows**
+```bash
+net stop postgresql-x64-13
+```
+*(Reemplaza `13` si tu versión es diferente)*
+
+#### 2. Verifica que está detenido
+```bash
+ps aux | grep postgres
+```
+
+#### 3. Levantar servicios con Docker
+```bash
+docker compose up -d
+```
+
+---
+
+### 🔁 Volver a usar PostgreSQL Nativo (desactivando Docker)
+
+#### 1. Detener contenedores de Docker
+```bash
+docker compose down
+```
+
+#### 2. Iniciar el servicio PostgreSQL nativo
+
+- **Windows**
+```bash
+net start postgresql-x64-13
+```
