@@ -1,22 +1,22 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+importante { prueba, Testingmodule } de '@Nestjs/Pruebas';
+importante { AppController } de './app.controller';
+importante { APPService } de './app.service';
 
-describe('AppController', () => {
-  let appController: AppController;
+describir('AppController', () => {
+  dejar AppController: AppController;
 
-  beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [AppService],
-    }).compile();
+  ANTERIOR(asínrata () => {
+    estúpido aplicación: Testingmodule = espera prueba.createtestingmodule({
+      controladores: [AppController],
+      proveedores: [APPService],
+    }).compilar();
 
-    appController = app.get<AppController>(AppController);
+    AppController = aplicación.consumo<AppController>(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+  describir('raíz', () => {
+    cílae('debería regresar "Hola mundo!"', () => {
+      esperar(AppController.getello()).ser('Hola Mundo!');
     });
   });
 });
