@@ -1,33 +1,93 @@
-
 # 🌿 Agrotech Backend
 
-Este repositorio contiene el backend de la aplicación **Agrotech**, desarrollado con **NestJS**, **TypeORM** y **PostgreSQL**.
+Este repositorio contiene el backend de la aplicación **Agrotech**, desarrollado con **NestJS, TypeORM y PostgreSQL**.  
+
+El sistema implementa:  
+
+- Autenticación con **JWT**  
+- Gestión de **roles y permisos**  
+- Subida de **evidencias con Multer**  
+- Organización modular para escalabilidad  
+- Migraciones con **TypeORM**  
+- Integración con **Docker y pgAdmin**  
 
 ---
 
-## 📦 Estructura del Proyecto
+## 📦 Estructura del Proyecto  
 
-```
+```bash
 backend_agrotech/
-├── src/
-│   ├── tipo-cultivo/
-│   ├── cultivos/
-│   ├── sublotes/
-│   ├── lotes/
-│   ├── migrations/
-│   └── data-source.ts
-├── docker-compose.yml
-├── package.json
-└── tsconfig.json
-```
+src/
+├── actividad/              # Módulo para actividades agrícolas
+├── autentication/          # Autenticación con JWT y bcrypt
+├── configs/                # Configuraciones globales
+├── cultivo/                # Módulo de cultivos
+├── finanza/                # Gestión de finanzas
+├── init/                   # Inicialización (usuario admin por defecto, seeds, etc.)
+├── inventario/             # Manejo de inventarios
+├── IoT/                    # Integración con dispositivos IoT
+├── middleware/             # Middlewares globales
+├── migrations/             # Migraciones TypeORM
+├── usuario/                # Gestión de usuarios y roles
+│   ├── roles/
+│   └── usuarios/
+├── app.controller.spec.ts
+├── app.controller.ts
+├── app.module.ts
+├── app.service.ts
+├── data-source.ts          # Configuración de TypeORM
+└── main.ts                 # Punto de entrada de la aplicación
 
----
+uploads/                    # Carpeta donde se almacenan las evidencias
+test/                       # Pruebas unitarias
+🔑 Autenticación y Roles
+Autenticación con JWT
 
-## ⚙️ Configuración de TypeORM
+Contraseñas seguras encriptadas con bcrypt
 
-**Archivo principal de configuración:** `src/data-source.ts`
+Uso de guards para proteger endpoints
 
-```ts
+Decoradores personalizados para manejo de roles
+
+Se crea un usuario administrador por defecto en la primera ejecución
+
+json
+Copiar código
+{
+  "correo_usuario": "admin@admin.com",
+  "contrasena_usuario": "admin123"
+}
+🔐 Endpoint de Login
+http
+Copiar código
+POST http://localhost:3000/api/v1/auth/login
+Body (JSON):
+
+json
+Copiar código
+{
+  "correo_usuario": "admin@admin.com",
+  "contrasena_usuario": "admin123"
+}
+Respuesta (token JWT):
+
+json
+Copiar código
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR..."
+}
+📂 Evidencias con Multer
+Las imágenes se suben con Multer
+
+Se guardan en la carpeta uploads/evidencia
+
+Quedan vinculadas en la tabla correspondiente de la base de datos
+
+⚙ Configuración de TypeORM
+Archivo principal: src/data-source.ts
+
+ts
+Copiar código
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: 'host.docker.internal',
@@ -37,57 +97,44 @@ export const AppDataSource = new DataSource({
   database: 'agrotech',
   synchronize: false,
   logging: false,
-  entities: [TipoCultivo, Cultivo, Sublote, Lote],
+  entities: [__dirname + '/**/*.entity{.ts,.js}'],
   migrations: ['src/migrations/**/*.ts'],
   subscribers: [],
 });
-```
+⚠ IMPORTANTE:
+Mantener synchronize: false si usas migraciones.
+Si no cargas manualmente las entidades, activa autoLoadEntities: true en AppModule.
 
-> ⚠️ **IMPORTANTE:** Asegúrate de mantener `synchronize: false` si estás usando migraciones, para evitar que TypeORM modifique el esquema automáticamente.  
-> Utiliza `autoLoadEntities: true` en el `AppModule` si no estás cargando las entidades manualmente en `data-source.ts`.
-
----
-
-## 🔧 Scripts disponibles (`package.json`)
-
-```json
+🔧 Scripts disponibles
+json
+Copiar código
 "scripts": {
   "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/data-source.ts",
   "migrations:generate": "npm run typeorm -- migration:generate -p",
   "migrations:run": "npm run typeorm -- migration:run",
-  "migration:create": "npm run typeorm -- migration:create"
+  "migration:create": "npm run typeorm -- migration:create",
+  "start:dev": "nest start --watch"
 }
-```
+📜 Migraciones
+Generar migración automática:
 
----
-
-## 📜 Comandos útiles de migraciones
-
-- 🔨 **Generar migración automática con nombre:**
-
-```bash
+bash
+Copiar código
 npm run migrations:generate src/migrations/InitialMigration
-```
+Crear migración vacía:
 
-- 📝 **Crear migración vacía:**
+bash
+Copiar código
+npm run migration:create src/migrations/NombreMigracion
+Ejecutar migraciones:
 
-```bash
-npm run migration:create -- src/migrations/NombreMigracion
-```
-
-- 🚀 **Ejecutar migraciones pendientes:**
-
-```bash
+bash
+Copiar código
 npm run migrations:run
-```
-
----
-
-## 🐳 Docker - Servicios y configuración
-
-### 🧾 docker-compose.yml
-
-```yaml
+🐳 Docker
+📋 docker-compose.yml
+yaml
+Copiar código
 version: '3.9'
 
 services:
@@ -116,98 +163,63 @@ services:
 
 volumes:
   pg_data:
-```
-
----
-
-### 🐚 Comandos Docker útiles
-
-- ✅ Levantar servicios:
-```bash
+🐚 Comandos Docker útiles
+bash
+Copiar código
+# Levantar servicios
 docker compose up -d
-```
 
-- ❌ Detener servicios:
-```bash
+# Detener servicios
 docker compose down
-```
 
-- 💣 Eliminar contenedores + volúmenes:
-```bash
+# Eliminar contenedores + volúmenes
 docker compose down -v
-```
 
-- 🔄 Reiniciar servicios:
-```bash
+# Reiniciar servicios
 docker compose restart
-```
 
-- 🧐 Ver contenedores activos:
-```bash
+# Ver contenedores activos
 docker ps
-```
 
-- 🐘 Ingresar a PostgreSQL dentro del contenedor:
-```bash
+# Ingresar a PostgreSQL
 docker exec -it agrotech_database psql -U agrotech -d agrotech
-```
+🌐 Acceder a pgAdmin
+Ir a: http://localhost:8080
 
----
+Credenciales:
 
-## 🌐 Acceder a pgAdmin
+Email: admin@admin.com
 
-1. Abre tu navegador y entra a: [http://localhost:8080](http://localhost:8080)
-2. Credenciales:
-   - **Email:** `admin@admin.com`
-   - **Contraseña:** `admin`
-3. Crear nuevo servidor:
-   - **Name:** `PostgresDocker`
-   - **Host:** `postgres` (nombre del servicio)
-   - **Port:** `5432`
-   - **DB:** `agrotech`
-   - **User:** `agrotech`
-   - **Password:** `123`
-4. Visualizar la base de datos en pgAdmin:
-**AppModule.ts:** Coloca temporalmente `synchronize: true` en la configuración de `TypeOrmModule.forRoot()` para que TypeORM cree automáticamente las tablas según tus entidades.
+Contraseña: admin
 
-Una vez cargadas las tablas en la base de datos, desactiva esta opción `synchronize: false` para evitar pérdida de datos o conflictos en producción.
+Crear servidor:
 
----
+Name: PostgresDocker
 
-## 🧯 Cambiar entre PostgreSQL Nativo y Docker
+Host: postgres
 
-### 🔌 Desactivar PostgreSQL Nativo para usar Docker
+Port: 5432
 
-#### 1. Detener el servicio de PostgreSQL nativo
+DB: agrotech
 
-- **Windows**
-```bash
-net stop postgresql-x64-13
-```
-*(Reemplaza `13` si tu versión es diferente)*
+User: agrotech
 
-#### 2. Verifica que está detenido
-```bash
-ps aux | grep postgres
-```
+Password: 123
 
-#### 3. Levantar servicios con Docker
-```bash
-docker compose up -d
-```
+✨ Características principales
+🔑 Autenticación con JWT
 
----
+🛡 Protección con guards y roles
 
-### 🔁 Volver a usar PostgreSQL Nativo (desactivando Docker)
+🔒 Contraseñas seguras con bcrypt
 
-#### 1. Detener contenedores de Docker
-```bash
-docker compose down
-```
+🖼 Subida de archivos con Multer
 
-#### 2. Iniciar el servicio PostgreSQL nativo
+🗄 Migraciones con TypeORM
 
-- **Windows**
-```bash
-net start postgresql-x64-13
-```
+🐳 Integración con Docker y pgAdmin
+
+⚙ Arquitectura modular (actividad, cultivo, finanza, IoT, inventario, usuario, etc.)
+
+👨‍💻 Autor
+Desarrollado por Oscar Ortega.

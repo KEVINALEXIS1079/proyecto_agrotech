@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { TipoCultivo } from './tipo-cultivo/entities/tipo-cultivo.entity';
-import { Cultivo } from './cultivos/entities/cultivo.entity';
-import { Sublote } from './sublotes/entities/sublote.entity';
-import { Lote } from './lotes/entities/lote.entity';
+import { TipoCultivo } from './cultivo/tipo-cultivo/entities/tipo-cultivo.entity';
+import { Cultivo } from './cultivo/cultivos/entities/cultivo.entity';
+import { Sublote } from './cultivo/sublotes/entities/sublote.entity';
+import { Lote } from './cultivo/lotes/entities/lote.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -12,7 +12,7 @@ export const AppDataSource = new DataSource({
   username: 'agrotech',
   password: '123',
   database: 'agrotech',
-  synchronize: false,
+  synchronize: true,// true // Cambiar a false en producción
   logging: false,
   entities: [TipoCultivo, Cultivo, Sublote, Lote],
   migrations: ['src/migrations/**/*.ts'],
