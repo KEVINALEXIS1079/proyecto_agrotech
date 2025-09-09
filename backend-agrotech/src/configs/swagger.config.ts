@@ -1,16 +1,44 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, RequestMethod } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
-export const setupSwagger = (app:INestApplication)=>{
+let documentCache: any = null;
 
-    
-    const config = new DocumentBuilder()
+export const setupSwagger = (app: INestApplication) => {
+  const config = new DocumentBuilder()
     .setTitle('Agrotech API')
-    .setDescription('Api Rest Enpoints documentation')
+    .setDescription('API REST Endpoints documentation')
     .setVersion('1.0')
-/*     .addTag('cats') */
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        in: 'header',
+      },
+      'access-token',
+    )
     .build();
-    
-    const documentFactory = () => SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/v1', app, documentFactory);
+
+  const document = SwaggerModule.createDocument(app, config);
+  documentCache = document;
+};
+
+//  Exportamos el documento para Scalar
+export const getSwaggerDocument = () => {
+  return documentCache;
+};
+
+//  Middleware para reemplazar <title> en el HTML de Scalar
+export const injectHtmlTitleMiddleware = () => {
+  return (req, res, next) => {
+    const originalSend = res.send;
+    res.send = function (body) {
+      if (typeof body === 'string') {
+        body = body.replace(/<title>.*?<\/title>/, '<title>Agrotech API Docs</title>');
+      }
+      originalSend.call(this, body);
+    };
+    next();
+  };
 };
