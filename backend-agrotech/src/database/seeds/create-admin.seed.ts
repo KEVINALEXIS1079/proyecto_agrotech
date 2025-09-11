@@ -1,7 +1,8 @@
 import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Usuario, estado_usuario } from '../../modules/usuario/usuarios/entities/usuario.entity';
+import { Usuario } from '../../modules/usuario/usuarios/entities/usuario.entity';
+import { EstadoUsuario } from 'src/modules/usuario/usuarios/enums/estado-usuario.enum';
 import { Rol } from '../../modules/usuario/roles/entities/rol.entity';
 import * as bcrypt from 'bcrypt';
 
@@ -52,7 +53,7 @@ export class CreateAdminSeed implements OnApplicationBootstrap {
         telefono_usuario: '0000000000',
         correo_usuario: adminEmail,
         contrasena_usuario: hashedPassword,
-        estado_usuario: estado_usuario.ACTIVO,
+        estado_usuario: EstadoUsuario.ACTIVO,
         rol: adminRol,
         codigo_recuperacion: null,
         codigo_expiracion: null,

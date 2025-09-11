@@ -5,6 +5,7 @@ import { MovimientoInsumo } from './entities/movimiento-insumo.entity';
 import { CreateMovimientoInsumoDto } from './dto/create-movimiento-insumo.dto';
 import { UpdateMovimientoInsumoDto } from './dto/update-movimiento-insumo.dto';
 import { Insumo } from 'src/modules/inventario/insumos/entities/insumo.entity';
+import { EstadoInsumo } from 'src/modules/inventario/insumos/enums/estado-insumo.enum';
 
 @Injectable()
 export class MovimientoInsumoService {
@@ -31,11 +32,17 @@ export class MovimientoInsumoService {
       throw new BadRequestException('tipo_movimiento inválido');
     }
 
-    // actualizar estado
+    // actualizar estado usando el enum extendido
     const stock_minimo = 10;
-    let estado = 'A';
-    if (stock <= stock_minimo) estado = 'B';
-    else if (stock <= stock_minimo + 10) estado = 'M';
+    let estado: EstadoInsumo = EstadoInsumo.ACTIVO;
+
+    if (stock <= stock_minimo) {
+      estado = EstadoInsumo.BAJO_STOCK;
+    } else if (stock <= stock_minimo + 10) {
+      estado = EstadoInsumo.MEDIO_STOCK;
+    } else {
+      estado = EstadoInsumo.ACTIVO;
+    }
 
     insumo.stock = stock;
     insumo.estado_insumo = estado;

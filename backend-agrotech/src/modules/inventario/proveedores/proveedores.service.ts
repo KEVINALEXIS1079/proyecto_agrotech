@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Proveedor } from './entities/proveedores.entity';
@@ -13,10 +13,46 @@ export class ProveedoresService {
   ) {}
 
   // Crear proveedor
-  async create(dto: CreateProveedorDto): Promise<string> {
-    const nuevoProveedor = this.proveedorRepository.create(dto);
-    await this.proveedorRepository.save(nuevoProveedor);
-    return 'Proveedor registrado correctamente';
+  async create (dto: CreateProveedorDto): Promise<string>{
+
+    const existeNombre= await this.proveedorRepository.findOne({
+      where: { nombre_proveedor:dto.nombre_proveedor},
+    });
+    if (existeNombre) {
+      throw new BadGatewayException(
+        `El proveedor ya existe`,
+      );
+    }
+
+    const existeDireccion= await this.proveedorRepository.findOne({
+      where: { direccion_proveedor: dto.direccion_proveedor},
+    });
+    if (existeDireccion) {
+      throw new BadRequestException(
+        `La direccion del proveedor ya existe`
+      );
+    }
+
+    const existeCorreo= await this.proveedorRepository.findOne({
+      where: { email_proveedor: dto.email_proveedor},
+    });
+    if (existeCorreo) {
+      throw new BadGatewayException(
+        `El correo del proveedor ya esta registrado`
+      );
+    }
+    const existeTelfono= await this.proveedorRepository.findOne({
+      where: { telefono_proveedor: dto.telefono_proveedor},
+    });
+    if (existeTelfono) {
+      throw new BadGatewayException(
+        `El telefono del proveedor ya existe`
+      );
+    }
+
+    const proveedor = this.proveedorRepository.create(dto);
+    await this.proveedorRepository.save(proveedor);
+    return 'Proveedor creado correctamente'
   }
 
   // Listar todos

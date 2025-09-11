@@ -19,7 +19,7 @@ export class Actividad {
   @PrimaryGeneratedColumn()
   id_actividad_pk: number;
 
-  @Column({ type: 'enum', enum: ['pendiente', 'en_progreso', 'completada', 'cancelada'] })
+  @Column({ type: 'enum', enum: ['Pendiente', 'En progreso', 'Completada', 'Cancelada'] })
   estado_actividad: string;
 
   @Column({ type: 'text' })

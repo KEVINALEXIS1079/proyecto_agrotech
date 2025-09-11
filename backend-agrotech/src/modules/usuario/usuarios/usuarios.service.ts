@@ -2,98 +2,89 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
+
 import { Usuario } from './entities/usuario.entity';
-import { Rol } from '../roles/entities/rol.entity';
-import { CorreoService } from 'src/common/services/correo/correo.service';
-import { InjectRedis } from '@nestjs-modules/ioredis';
-import { Redis } from 'ioredis';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { RegistrarUsuarioPublicDTO } from './dto/crear-usurio-public.dto';
+import { RegistrarUsuarioPublicDTO } from './dto/crear-usuario-public.dto';
+import { Rol } from '../roles/entities/rol.entity';
 
 @Injectable()
 export class UsuariosService {
   constructor(
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
+
     @InjectRepository(Rol)
     private readonly rolRepository: Repository<Rol>,
-    private readonly correoService: CorreoService,
-    @InjectRedis() private readonly redisClient: Redis,
   ) {}
-// crear usuario con rol admin/instructor autenticado (usa id_rol_fk)
-  async create(dto: CreateUsuarioDto): Promise<string> {
+
+  async create(dto: CreateUsuarioDto, imgPath?: string): Promise<string> {
     const rol = await this.rolRepository.findOneBy({ id_rol_pk: dto.id_rol_fk });
     if (!rol) throw new NotFoundException('El rol especificado no existe');
 
-    // Validar correo duplicado
     const existeCorreo = await this.usuarioRepository.findOne({
       where: { correo_usuario: dto.correo_usuario },
     });
-    if (existeCorreo) {
-      throw new BadRequestException('El correo electrónico ya está registrado');
-    }
+    if (existeCorreo) throw new BadRequestException('El correo electrónico ya está registrado');
 
-    // Validar cédula duplicada
     const existeCedula = await this.usuarioRepository.findOne({
       where: { cedula_usuario: dto.cedula_usuario },
     });
-    if (existeCedula) {
-      throw new BadRequestException('La cédula ya está registrada');
-    }
+    if (existeCedula) throw new BadRequestException('La cédula ya está registrada');
 
-    // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(dto.contrasena_usuario, 10);
+
+    let finalPath = imgPath;
+    if (imgPath && dto.correo_usuario) {
+      finalPath = await this.moveImageToUserFolder(imgPath, dto.correo_usuario);
+    }
 
     const nuevoUsuario = this.usuarioRepository.create({
       ...dto,
       contrasena_usuario: hashedPassword,
       rol,
+      img_usuario: finalPath ?? null,
     });
 
     await this.usuarioRepository.save(nuevoUsuario);
     return `Usuario creado correctamente con rol: ${rol.nombre_rol}`;
   }
 
-  //Registro público (sin autenticación Siempre se asigna rol "Usuario"
-
-  async createPublic(dto: RegistrarUsuarioPublicDTO): Promise<string> {
-    // Buscar rol "Usuario"
+  async createPublic(dto: RegistrarUsuarioPublicDTO, imgPath?: string): Promise<string> {
     const rolUsuario = await this.rolRepository.findOne({
-      where: { nombre_rol: 'Invitado' }, // asegúrate que existe en la tabla roles
+      where: { nombre_rol: 'Invitado' },
     });
-    if (!rolUsuario) {
-      throw new NotFoundException('El rol "Invitado" no existe en la base de datos');
-    }
+    if (!rolUsuario) throw new NotFoundException('El rol "Invitado" no existe');
 
-    // Validar correo duplicado
     const existeCorreo = await this.usuarioRepository.findOne({
       where: { correo_usuario: dto.correo_usuario },
     });
-    if (existeCorreo) {
-      throw new BadRequestException('El correo electrónico ya está registrado');
-    }
+    if (existeCorreo) throw new BadRequestException('El correo electrónico ya está registrado');
 
-    // Validar cédula duplicada
     const existeCedula = await this.usuarioRepository.findOne({
       where: { cedula_usuario: dto.cedula_usuario },
     });
-    if (existeCedula) {
-      throw new BadRequestException('La cédula ya está registrada');
-    }
+    if (existeCedula) throw new BadRequestException('La cédula ya está registrada');
 
-    // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(dto.contrasena_usuario, 10);
+
+    let finalPath = imgPath;
+    if (imgPath && dto.correo_usuario) {
+      finalPath = await this.moveImageToUserFolder(imgPath, dto.correo_usuario);
+    }
 
     const nuevoUsuario = this.usuarioRepository.create({
       ...dto,
       contrasena_usuario: hashedPassword,
-      rol: rolUsuario, //  siempre se asigna rol "Invitado"
+      rol: rolUsuario,
+      img_usuario: finalPath ?? null,
     });
 
     await this.usuarioRepository.save(nuevoUsuario);
@@ -101,7 +92,10 @@ export class UsuariosService {
   }
 
   async findAll(): Promise<Usuario[]> {
-    return this.usuarioRepository.find({ relations: ['rol'] });
+    return this.usuarioRepository.find({
+      relations: ['rol'],
+      withDeleted: true,
+    });
   }
 
   async findOne(id: number): Promise<Usuario> {
@@ -111,21 +105,11 @@ export class UsuariosService {
       withDeleted: true,
     });
 
-    if (!usuario) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    if (!usuario) throw new NotFoundException('Usuario no encontrado');
     return usuario;
   }
 
-  async findOneByEmail(email: string): Promise<Usuario> {
-    const usuario = await this.usuarioRepository.findOne({
-      where: { correo_usuario: email },
-      relations: ['rol'],
-    });
-
-    if (!usuario) throw new NotFoundException(`Usuario con email ${email} no encontrado`);
-    return usuario;
-  }
-
-  async update(id: number, dto: UpdateUsuarioDto): Promise<string> {
+  async update(id: number, dto: UpdateUsuarioDto, imgPath?: string): Promise<string> {
     const usuario = await this.findOne(id);
 
     if (dto.id_rol_fk && dto.id_rol_fk !== usuario.rol?.id_rol_pk) {
@@ -134,85 +118,56 @@ export class UsuariosService {
       usuario.rol = nuevoRol;
     }
 
+    if (imgPath) {
+      if (usuario.img_usuario && fs.existsSync(usuario.img_usuario)) {
+        fs.unlinkSync(usuario.img_usuario);
+      }
+      usuario.img_usuario = await this.moveImageToUserFolder(
+        imgPath,
+        dto.correo_usuario ?? usuario.correo_usuario,
+      );
+    }
+
     Object.assign(usuario, dto);
     await this.usuarioRepository.save(usuario);
     return 'Usuario actualizado correctamente';
   }
 
   async remove(id: number): Promise<string> {
-    const result = await this.usuarioRepository.softDelete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    const usuario = await this.findOne(id);
+
+    if (usuario.img_usuario && fs.existsSync(usuario.img_usuario)) {
+      fs.unlinkSync(usuario.img_usuario);
     }
+
+    const result = await this.usuarioRepository.softDelete({ id_usuario_pk: id });
+    if (result.affected === 0) throw new NotFoundException('Usuario no encontrado');
+
     return `Usuario con ID ${id} eliminado correctamente`;
   }
 
   async restore(id: number): Promise<string> {
-    const result = await this.usuarioRepository.restore(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
-    }
+    const result = await this.usuarioRepository.restore({ id_usuario_pk: id });
+    if (result.affected === 0) throw new NotFoundException('Usuario no encontrado');
+
     return `Usuario con ID ${id} restaurado correctamente`;
   }
 
-  //Recuperación de contraseña 
-  async solicitarRecuperacion(correo_usuario: string): Promise<string> {
-    const email = correo_usuario.trim().toLowerCase();
+  // Helpers
+  private async moveImageToUserFolder(originalPath: string, correo: string): Promise<string> {
+    const userFolder = path.join('./uploads/usuarios', correo);
+    const fileName = path.basename(originalPath);
+    const newPath = path.join(userFolder, fileName);
 
-    const usuario = await this.usuarioRepository.findOne({
-      where: { correo_usuario: email },
-    });
-
-    if (!usuario) return 'Si el correo existe, recibirás un código de recuperación.';
-
-    const codigoExistente = await this.redisClient.get(`recuperacion:${email}`);
-    if (codigoExistente) {
-      throw new BadRequestException(
-        'Ya hay un código activo. Revisa tu correo o espera 10 minutos.',
-      );
+    if (!fs.existsSync(userFolder)) {
+      fs.mkdirSync(userFolder, { recursive: true });
     }
 
-    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    await this.redisClient.set(`recuperacion:${email}`, codigo, 'EX', 600); // 10 minutos
-
-    const nombreCompleto = `${usuario.nombre_usuario} ${usuario.apellido_usuario}`;
-    await this.correoService.enviarCodigoRecuperacion(email, codigo, nombreCompleto);
-
-    return 'Si el correo existe, recibirás un código de recuperación.';
-  }
-
-  async verificarCodigo(email: string, codigo: string): Promise<string> {
-    const codigoGuardado = await this.redisClient.get(`recuperacion:${email}`);
-    if (!codigoGuardado) throw new ForbiddenException('Código no solicitado o expirado');
-    if (codigoGuardado !== codigo) throw new ForbiddenException('Código incorrecto');
-    return 'Código verificado correctamente';
-  }
-
-  async cambiarContrasena(
-    email: string,
-    codigo: string,
-    nuevaContrasena: string,
-  ): Promise<string> {
-    const codigoGuardado = await this.redisClient.get(`recuperacion:${email}`);
-    if (!codigoGuardado || codigoGuardado !== codigo) {
-      throw new ForbiddenException('Código incorrecto o expirado');
+    if (fs.existsSync(originalPath)) {
+      fs.renameSync(originalPath, newPath);
+      return newPath;
     }
 
-    const usuario = await this.usuarioRepository.findOne({
-      where: { correo_usuario: email },
-    });
-    if (!usuario) throw new NotFoundException('Usuario no encontrado');
-
-    if (nuevaContrasena.length < 8) {
-      throw new BadRequestException(
-        'La contraseña debe tener al menos 8 caracteres',
-      );
-    }
-
-    usuario.contrasena_usuario = await bcrypt.hash(nuevaContrasena, 10);
-    await this.usuarioRepository.save(usuario);
-    await this.redisClient.del(`recuperacion:${email}`);
-
-    return 'Contraseña actualizada correctamente';
+    return originalPath;
   }
 }

@@ -48,8 +48,8 @@ Ejemplo de login:
 ```bash
 POST /auth/login
 {
-  "email": "admin@admin.com",
-  "password": "admin123"
+  "email": "agrotechsena2025@gmail.com",
+  "password": "********"
 }
 ```
 </details>

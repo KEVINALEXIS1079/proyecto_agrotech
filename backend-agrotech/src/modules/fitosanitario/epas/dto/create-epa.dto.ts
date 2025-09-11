@@ -28,7 +28,19 @@ export class CreateEpaDto {
   @IsEnum(EstadoEpaEnum, { message: 'El estado debe ser "presente" o "ausente"' })
   estado: EstadoEpaEnum;
 
+  @ApiProperty({
+    description:'El ID tipo epa asociada',
+    example:1
+  })
   @IsNumber({}, { message: 'El ID del tipo EPA debe ser numérico' })
   @IsNotEmpty({ message: 'Debe especificar el tipo de EPA' })
   id_tipo_epa_fk: number;
+
+  @ApiProperty({
+  description: 'El cultivo asociado al EPA',
+  example: 2,
+})
+@IsNumber({}, { message: 'El ID del cultivo debe ser numérico' })
+@IsNotEmpty({ message: 'Debe especificar el cultivo asociado' })
+id_cultivo_fk: number;
 }

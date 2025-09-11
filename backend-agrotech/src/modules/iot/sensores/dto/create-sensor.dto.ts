@@ -10,8 +10,23 @@ export class CreateSensorDto {
   nombre_sensor: string;
 
   @ApiProperty({
+    description: ' El valor minimo debe ser un numero',
+    example: 20
+  })
+  @IsInt({ message: ' El valor minimo debe ser un numero'})
+  valor_minimo: number
+
+
+    @ApiProperty({
+    description: ' El valor maximo debe ser un numero',
+    example: 20
+  })
+  @IsInt({ message: ' El valor maximo debe ser un numero'})
+  valor_maximo: number
+
+  @ApiProperty({
     description: 'Fecha de inicio de funcionamiento del sensor',
-    examples: ['2025-01-15', '2025-06-01'], // formato ISO 8601
+    examples: ['2025-01-15', '2025-06-01'],
   })
   @IsDateString({}, { message: 'La fecha de instalación debe ser una fecha válida, con formato Año/Mes/día' })
   fecha_inicio_sensor: string;

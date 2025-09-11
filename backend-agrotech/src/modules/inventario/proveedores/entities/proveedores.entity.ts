@@ -14,15 +14,15 @@ export class Proveedor {
 
   // Dirección del proveedor
   @Column({ type: 'varchar', length: 255, nullable: true })
-  direccion: string;
+  direccion_proveedor: string;
 
   // Correo electrónico del proveedor
   @Column({ type: 'varchar', length: 100, nullable: true })
-  email: string;
+  email_proveedor: string;
 
   // Número de teléfono del proveedor (opcional)
   @Column({ type: 'varchar', length: 50, nullable: true })
-  telefono: string;
+  telefono_proveedor: string;
 
   // Marca de tiempo de creación del proveedor
   @DeleteDateColumn({ type: 'timestamp', nullable: true })

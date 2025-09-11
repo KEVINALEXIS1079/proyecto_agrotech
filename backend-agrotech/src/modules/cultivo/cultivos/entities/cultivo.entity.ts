@@ -58,11 +58,7 @@ export class Cultivo {
   // Relación con CultivosActividades
   @OneToMany(() => CultivoActividad, (ca) => ca.cultivo)
   cultivoActividad: CultivoActividad[];
-
-  // Relación con Evidencias
-  @OneToMany(() => Evidencia, (evidencia) => evidencia.cultivo)
-  evidencias: Evidencia[];
-
+  
   // Relación con Productos
   @OneToMany(() => Producto, (producto) => producto.cultivo)
   productos: Producto[];

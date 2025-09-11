@@ -1,18 +1,17 @@
 import {
   IsEmail,
   IsEnum,
-  IsInt,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
   Length,
+  IsOptional
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
 import { EstadoUsuario } from '../enums/estado-usuario.enum';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateUsuarioDto {
+export class RegistrarUsuarioPublicDTO {
   @ApiProperty({
     description: 'Cédula del usuario (números entre 6 y 15 dígitos)',
     example: '1234567890',
@@ -24,7 +23,7 @@ export class CreateUsuarioDto {
 
   @ApiProperty({
     description: 'Nombre del usuario',
-    example: 'Andrés',
+    example: 'María',
   })
   @IsString({ message: 'El nombre del usuario debe ser texto' })
   @MaxLength(30, { message: 'El nombre no debe superar los 30 caracteres' })
@@ -33,7 +32,7 @@ export class CreateUsuarioDto {
 
   @ApiProperty({
     description: 'Apellido del usuario',
-    example: 'Escobar',
+    example: 'Rojas',
   })
   @IsString({ message: 'El apellido del usuario debe ser texto' })
   @MaxLength(30, { message: 'El apellido no debe superar los 30 caracteres' })
@@ -42,16 +41,16 @@ export class CreateUsuarioDto {
 
   @ApiProperty({
     description: 'Teléfono del usuario (10 dígitos)',
-    example: '3001234567',
+    example: '3205874152',
   })
   @IsString({ message: 'El teléfono debe ser una cadena numérica' })
-  @Length(10, 10, { message: 'El teléfono debe tener exactamente 10 dígitos' })
+  @Length(10, 10, { message: 'El número debe tener exactamente 10 dígitos' })
   @Matches(/^[0-9]+$/, { message: 'El teléfono solo debe contener números' })
   telefono_usuario: string;
 
   @ApiProperty({
     description: 'Correo electrónico del usuario',
-    example: 'usuario@mail.com',
+    example: 'usuario@gmail.com',
   })
   @IsEmail({}, { message: 'Debe ser un correo electrónico válido' })
   @MaxLength(100, { message: 'El correo no debe superar los 100 caracteres' })
@@ -59,13 +58,13 @@ export class CreateUsuarioDto {
 
   @ApiProperty({
     description: 'Contraseña del usuario (mínimo 6 caracteres)',
-    example: 'P@ssw0rd!',
+    example: 'clave123',
   })
   @IsString({ message: 'La contraseña debe ser texto' })
   @Length(6, 50, { message: 'La contraseña debe tener entre 6 y 50 caracteres' })
   contrasena_usuario: string;
 
-  @ApiProperty({
+    @ApiProperty({
     description: 'Imagen del usuario (URL o ruta)',
     example: 'uploads/usuarios/avatar.png',
     required: false,
@@ -75,18 +74,12 @@ export class CreateUsuarioDto {
   img_usuario?: string | null;
 
   @ApiProperty({
-    description: 'Estado del usuario',
+    description:
+      'Estado del usuario (por defecto se crea como activo al registrarse públicamente)',
     enum: EstadoUsuario,
-    example: 'activo',
+    example: EstadoUsuario.ACTIVO,
+    default: EstadoUsuario.ACTIVO,
   })
   @IsEnum(EstadoUsuario, { message: 'El estado debe ser activo o inactivo' })
-  estado_usuario: EstadoUsuario;
-
-  @ApiProperty({
-    description: 'ID del rol asociado al usuario',
-    example: 1,
-  })
-  @IsInt({ message: 'El ID de rol debe ser numérico' })
-  @IsNotEmpty({ message: 'Debe indicar el rol del usuario' })
-  id_rol_fk: number;
+  estado_usuario: EstadoUsuario = EstadoUsuario.ACTIVO;
 }

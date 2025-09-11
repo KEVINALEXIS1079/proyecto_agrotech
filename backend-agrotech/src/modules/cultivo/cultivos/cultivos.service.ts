@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cultivo } from './entities/cultivo.entity';
@@ -25,12 +25,20 @@ export class CultivosService {
 
     // Validar sublote
     const sublote = await this.subloteRepository.findOneBy({ id_sublote_pk: id_sublote_fk });
-    if (!sublote) throw new Error('Sublote no encontrado');
+    if (!sublote) throw new BadRequestException(' El Sublote especificado no existe');
 
     // Validar tipo de cultivo
     const tipoCultivo = await this.tipoCultivoRepository.findOneBy({ id_tipo_cultivo_pk: id_tipo_cultivo_fk });
-    if (!tipoCultivo) throw new Error('Tipo de cultivo no encontrado');
-
+    if (!tipoCultivo) throw new BadRequestException('El Tipo de cultivo especificado no existe');
+    
+    const existeNombre = await this.cultivoRepository.findOne({
+      where: { nombre_cultivo:createCultivoDto.nombre_cultivo}
+    })
+    if (existeNombre) {
+      throw new BadRequestException(
+        `El nombre del cultivo ya existe`
+      )
+    }
     // Crear el cultivo con relaciones
     const cultivo = this.cultivoRepository.create({
       ...data,
@@ -53,7 +61,7 @@ export class CultivosService {
       where: { id_cultivo_pk },
       relations: ['sublote', 'tipoCultivo'],
     });
-    if (!cultivo) throw new Error('Cultivo no encontrado');
+    if (!cultivo) throw new BadRequestException('Cultivo no encontrado');
     return cultivo;
   }
 
@@ -66,13 +74,13 @@ export class CultivosService {
 
   async remove(id_cultivo_pk: number): Promise<string> {
     const result = await this.cultivoRepository.softDelete({ id_cultivo_pk });
-    if (result.affected === 0) throw new Error('Cultivo no encontrado');
+    if (result.affected === 0) throw new BadRequestException('Cultivo no encontrado');
     return `Cultivo con ID ${id_cultivo_pk} eliminado correctamente`;
   }
 
   async restore(id_cultivo_pk: number): Promise<string> {
     const result = await this.cultivoRepository.restore({ id_cultivo_pk });
-    if (result.affected === 0) throw new Error('Cultivo no encontrado');
+    if (result.affected === 0) throw new BadRequestException('Cultivo no encontrado');
     return `Cultivo con ID ${id_cultivo_pk} restaurado correctamente`;
   }
 }

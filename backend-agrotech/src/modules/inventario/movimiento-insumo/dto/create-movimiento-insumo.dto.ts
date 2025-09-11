@@ -1,5 +1,6 @@
 import { IsInt, IsNotEmpty, IsOptional, IsString, IsDate } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer'; // <-- Import necesario
 
 export class CreateMovimientoInsumoDto {
   @ApiProperty({
@@ -33,9 +34,10 @@ export class CreateMovimientoInsumoDto {
 
   @ApiProperty({
     description: 'Fecha del movimiento',
-    examples: ['2025-09-02', '2025-05-20'], // formato recomendado ISO string
+    examples: ['2025-09-02', '2025-05-20'],
   })
   @IsDate()
+  @Type(() => Date) // <-- Esto convierte automáticamente el string a Date
   fecha_movimiento: Date;
 
   @ApiProperty({

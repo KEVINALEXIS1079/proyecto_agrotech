@@ -35,7 +35,7 @@ export class Evidencia {
   fecha_fin_evidencia: Date;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  ruta_imagen?: string | null;
+  img_evidencia?: string | null;
 
   //  Relación con Actividades
   @ManyToOne(() => Actividad, (actividad) => actividad.evidencias, {
@@ -47,14 +47,6 @@ export class Evidencia {
 
   @Column({ type: 'int' })
   id_actividad_fk: number;
-
-  //  Relación con Cultivo
-  @ManyToOne(() => Cultivo, (cultivo) => cultivo.evidencias, {
-    nullable: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'id_cultivo_fk' })
-  cultivo: Cultivo;
 
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
   delete_at: Date;

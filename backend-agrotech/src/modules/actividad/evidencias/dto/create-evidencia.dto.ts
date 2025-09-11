@@ -99,7 +99,7 @@ export class CreateEvidenciaDto {
     message: 'La ruta de la imagen no puede exceder los 255 caracteres',
   })
   @IsOptional()
-  ruta_imagen?: string | null;
+  img_evidencia?: string | null;
 
   @ApiProperty({
     description:
@@ -110,14 +110,4 @@ export class CreateEvidenciaDto {
   @IsInt({ message: 'El ID de la actividad debe ser un número entero' })
   @IsNotEmpty({ message: 'El ID de la actividad no puede estar vacío' })
   id_actividad_fk: number;
-
-  @ApiPropertyOptional({
-    description:
-      'Identificador del cultivo al que pertenece la evidencia (relación con tabla cultivos)',
-    example: 3,
-  })
-  @Type(() => Number)
-  @IsInt({ message: 'El ID del cultivo debe ser un número entero' })
-  @IsOptional()
-  id_cultivo_fk?: number | null;
 }

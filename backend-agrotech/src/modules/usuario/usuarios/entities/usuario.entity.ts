@@ -10,11 +10,8 @@ import {
 
 import { Rol } from '../../roles/entities/rol.entity';
 import { UsuarioActividad } from 'src/modules/actividad/usuario-actividad/entities/usuario-actividad.entity';
+import { EstadoUsuario } from '../enums/estado-usuario.enum';
 
-export enum estado_usuario {
-  ACTIVO = 'activo',
-  INACTIVO = 'inactivo',
-}
 
 @Entity({ name: 'usuarios' })
 export class Usuario {
@@ -39,12 +36,16 @@ export class Usuario {
   @Column()
   contrasena_usuario: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  img_usuario?: string | null;
+
+
   @Column({
     type: 'enum',
-    enum: estado_usuario,
+    enum: EstadoUsuario,
     name: 'estado_usuario',
   })
-  estado_usuario: estado_usuario;
+  estado_usuario: EstadoUsuario;
 
   @ManyToOne(() => Rol, rol => rol.usuarios)
   @JoinColumn({ name: 'id_rol_fk' })

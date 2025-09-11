@@ -4,69 +4,80 @@ import {
   IsString,
   IsDateString,
   IsOptional,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { EstadoInsumo } from '../enums/estado-insumo.enum';
 
-/*
-  DTO para crear un nuevo insumo.
-  Valida tipo y formato de los campos.
-*/
 export class CreateInsumoDto {
   @ApiProperty({
     description: 'Costo del insumo',
-    examples: [1200.5, 50000, 999.99],
+    examples: [1200.5, 50000],
   })
-  @IsNumber({ allowNaN: false, allowInfinity: false }, { message: 'El costo debe ser un número válido' })
+  @IsNumber({}, { message: 'El costo debe ser un número válido' })
   costo: number;
 
   @ApiProperty({
-    description: 'Cantidad disponible en stock',
-    examples: [10, 200, 500],
+    description: 'Cantidad en stock',
+    examples: [10, 200],
   })
   @IsInt({ message: 'El stock debe ser un número entero' })
   stock: number;
 
   @ApiProperty({
-    description: 'Unidad de medida del insumo',
-    examples: ['kg', 'litros', 'unidades'],
+    description: 'Estado del insumo',
+    enum: EstadoInsumo,
+    examples: [EstadoInsumo.ACTIVO, EstadoInsumo.INACTIVO],
+    required: false,
   })
-  @IsString({ message: 'La unidad de medida debe ser una cadena de texto' })
+  @IsOptional()
+  @IsEnum(EstadoInsumo, {
+    message:
+      'El estado debe ser uno de: A (Activo), I (Inactivo), O (Obsoleto), E (En espera), D (Dañado), R (Reservado)',
+  })
+  estado_insumo?: EstadoInsumo;
+
+  @ApiProperty({
+    description: 'Unidad de medida',
+    examples: ['kg', 'litros'],
+  })
+  @IsString({ message: 'La unidad de medida debe ser un texto' })
   unidad_medida: string;
 
   @ApiProperty({
-    description: 'Fecha de ingreso del insumo',
-    examples: ['2025-01-15', '2025-05-20'],
+    description: 'Fecha de ingreso',
+    example: '2025-01-15',
   })
-  @IsDateString({}, { message: 'La fecha de ingreso debe ser una fecha válida' })
+  @IsDateString({}, { message: 'La fecha de ingreso debe ser válida' })
   fecha_ingreso: string;
 
   @ApiProperty({
-    description: 'Fecha de salida del insumo (opcional)',
+    description: 'Fecha de salida',
+    example: '2025-02-01',
     required: false,
-    examples: ['2025-02-01', '2025-06-10'],
   })
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha de salida debe ser una fecha válida' })
+  @IsDateString({}, { message: 'La fecha de salida debe ser válida' })
   fecha_salida?: string;
 
   @ApiProperty({
-    description: 'Fecha de vencimiento del insumo (opcional)',
+    description: 'Fecha de vencimiento',
+    example: '2026-01-01',
     required: false,
-    examples: ['2026-01-01', '2025-12-31'],
   })
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha de vencimiento debe ser una fecha válida' })
+  @IsDateString({}, { message: 'La fecha de vencimiento debe ser válida' })
   fecha_vencimiento?: string;
 
   @ApiProperty({
-    description: 'ID del almacén al que pertenece el insumo',
+    description: 'ID del almacén',
     examples: [1, 3, 7],
   })
   @IsInt({ message: 'El id_almacen_fk debe ser un número entero' })
   id_almacen_fk: number;
 
   @ApiProperty({
-    description: 'ID de la categoría a la que pertenece el insumo',
+    description: 'ID de la categoría',
     examples: [2, 5, 8],
   })
   @IsInt({ message: 'El id_categoria_fk debe ser un número entero' })

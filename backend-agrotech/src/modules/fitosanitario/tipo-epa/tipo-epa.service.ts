@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TipoEpa } from './entities/tipo-epa.entity';
@@ -13,6 +13,16 @@ export class TipoEpaService {
   ) {}
 
   async create(dto: CreateTipoEpaDto): Promise<string> {
+
+    const existeNombreEpa = await this.tipoEpaRepository.findOne({
+      where: { nombre_tipo_epa: dto.nombre_tipo_epa},
+    });
+    if (existeNombreEpa) {
+      throw new BadRequestException(
+        `El tipo epa ya existe`
+      )
+    }
+
     const tipo = this.tipoEpaRepository.create(dto);
     await this.tipoEpaRepository.save(tipo);
     return 'Tipo EPA registrado correctamente';

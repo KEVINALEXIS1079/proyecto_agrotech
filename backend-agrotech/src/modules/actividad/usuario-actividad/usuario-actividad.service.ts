@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsuarioActividad } from './entities/usuario-actividad.entity';
@@ -21,54 +21,42 @@ export class UsuarioActividadService {
   ) {}
 
   async create(dto: CreateUsuarioActividadDto): Promise<string> {
-    const { dni_usuario_fk, id_actividad_fk } = dto;
-
-    // Validar que existan las FK
     const usuario = await this.usuarioRepository.findOne({
-      where: { cedula_usuario: dni_usuario_fk },
+      where: { cedula_usuario: dto.dni_usuario_fk },
     });
-    if (!usuario) {
-      throw new NotFoundException(
-        `Usuario con cédula ${dni_usuario_fk} no encontrado`,
-      );
-    }
+    if (!usuario) throw new NotFoundException(`Usuario con cédula ${dto.dni_usuario_fk} no encontrado`);
 
     const actividad = await this.actividadesRepository.findOne({
-      where: { id_actividad_pk: id_actividad_fk },
+      where: { id_actividad_pk: dto.id_actividad_fk },
     });
-    if (!actividad) {
-      throw new NotFoundException(
-        `Actividad con ID ${id_actividad_fk} no encontrada`,
-      );
-    }
+    if (!actividad) throw new NotFoundException(`Actividad con ID ${dto.id_actividad_fk} no encontrada`);
 
-    const nuevaRelacion = this.usuarioActividadRepository.create({
-      usuario,
-      actividad,
+    const existe = await this.usuarioActividadRepository.findOne({
+      where: { usuario: { cedula_usuario: dto.dni_usuario_fk }, actividad: { id_actividad_pk: dto.id_actividad_fk } },
     });
+    if (existe) throw new BadRequestException('La actividad ya se asignó a este usuario');
 
+    const nuevaRelacion = this.usuarioActividadRepository.create({ usuario, actividad });
     await this.usuarioActividadRepository.save(nuevaRelacion);
-    return 'Usuario actividad creada correctamente';
+    return `Usuario actividad creada correctamente para el usuario ${usuario.nombre_usuario} en la actividad ${actividad.nombre_actividad}`;
   }
 
   async findAll(): Promise<UsuarioActividad[]> {
-    return await this.usuarioActividadRepository.find({
-      relations: ['usuario', 'actividad'], // Relaciones declaradas en la entity
+    const relaciones = await this.usuarioActividadRepository.find({
+      relations: ['usuario', 'actividad'],
+      withDeleted: true,
     });
+    if (!relaciones || relaciones.length === 0) throw new NotFoundException('No se encontraron relaciones usuario-actividad');
+    return relaciones;
   }
 
   async findOne(id: number): Promise<UsuarioActividad> {
     const relacion = await this.usuarioActividadRepository.findOne({
       where: { id_usuarios_actividades_pk: id },
       relations: ['usuario', 'actividad'],
+      withDeleted: true,
     });
-
-    if (!relacion) {
-      throw new NotFoundException(
-        `Usuario actividad con ID ${id} no encontrado`,
-      );
-    }
-
+    if (!relacion) throw new NotFoundException(`Usuario actividad con ID ${id} no encontrada`);
     return relacion;
   }
 
@@ -79,11 +67,7 @@ export class UsuarioActividadService {
       const usuario = await this.usuarioRepository.findOne({
         where: { cedula_usuario: dto.dni_usuario_fk },
       });
-      if (!usuario) {
-        throw new NotFoundException(
-          `Usuario con cédula ${dto.dni_usuario_fk} no encontrado`,
-        );
-      }
+      if (!usuario) throw new NotFoundException(`Usuario con cédula ${dto.dni_usuario_fk} no encontrado`);
       relacion.usuario = usuario;
     }
 
@@ -91,35 +75,31 @@ export class UsuarioActividadService {
       const actividad = await this.actividadesRepository.findOne({
         where: { id_actividad_pk: dto.id_actividad_fk },
       });
-      if (!actividad) {
-        throw new NotFoundException(
-          `Actividad con ID ${dto.id_actividad_fk} no encontrada`,
-        );
-      }
+      if (!actividad) throw new NotFoundException(`Actividad con ID ${dto.id_actividad_fk} no encontrada`);
       relacion.actividad = actividad;
     }
 
+    // Validar duplicado al actualizar
+    const existe = await this.usuarioActividadRepository.findOne({
+      where: { usuario: { cedula_usuario: relacion.usuario.cedula_usuario }, actividad: { id_actividad_pk: relacion.actividad.id_actividad_pk } },
+    });
+    if (existe && existe.id_usuarios_actividades_pk !== id) {
+      throw new BadRequestException('La actividad ya se asignó a este usuario');
+    }
+
     await this.usuarioActividadRepository.save(relacion);
-    return 'Usuario actividad actualizada correctamente';
+    return `Usuario actividad con ID ${id} actualizada correctamente`;
   }
 
   async remove(id: number): Promise<string> {
     const result = await this.usuarioActividadRepository.softDelete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(
-        `Usuario actividad con ID ${id} no encontrado`,
-      );
-    }
+    if (result.affected === 0) throw new NotFoundException(`Usuario actividad con ID ${id} no encontrada`);
     return `Usuario actividad con ID ${id} eliminada correctamente`;
   }
 
   async restore(id: number): Promise<string> {
     const result = await this.usuarioActividadRepository.restore(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(
-        `Usuario actividad con ID ${id} no encontrada`,
-      );
-    }
+    if (result.affected === 0) throw new NotFoundException(`Usuario actividad con ID ${id} no encontrada`);
     return `Usuario actividad con ID ${id} restaurada correctamente`;
   }
 }

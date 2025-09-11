@@ -42,5 +42,5 @@ export class CreateProveedorDto {
   @IsOptional()
   @IsString({ message: 'El teléfono debe ser una cadena de texto' })
   @Length(0, 50, { message: 'El teléfono debe tener como máximo 50 caracteres' })
-  telefono_proveedor?: string | null;
+  telefono_proveedor?: string ;
 }

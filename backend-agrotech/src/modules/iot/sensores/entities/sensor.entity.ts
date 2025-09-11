@@ -17,6 +17,12 @@ export class Sensor {
   @Column({ type: 'varchar', length: 255 })
   nombre_sensor: string;
 
+  @Column({ type:'float'})
+  valor_minimo
+
+    @Column({ type:'float'})
+  valor_maximo
+
   @Column({ type: 'date' })
   fecha_inicio_sensor: Date;
 

@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Evidencia } from './entities/evidencia.entity';
 import { CreateEvidenciaDto } from './dto/create-evidencia.dto';
 import { UpdateEvidenciaDto } from './dto/update-evidencia.dto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class EvidenciasService {
@@ -12,61 +14,97 @@ export class EvidenciasService {
     private readonly evidenciaRepository: Repository<Evidencia>,
   ) {}
 
-  //  Crear evidencia con imagen opcional
   async create(
-    createEvidenciaDto: CreateEvidenciaDto,
-    rutaImagen?: string,
+    dto: CreateEvidenciaDto,
+    imgPath?: string,
+    username?: string,
   ): Promise<string> {
+    let finalPath = imgPath;
+
+    if (imgPath && username) {
+      finalPath = await this.moveImageToUserFolder(imgPath, username);
+    }
+
     const evidencia = this.evidenciaRepository.create({
-      ...createEvidenciaDto,
-      ruta_imagen: rutaImagen ?? null, // si no hay imagen, queda NULL
+      ...dto,
+      img_evidencia: finalPath ?? null,
     });
+
     await this.evidenciaRepository.save(evidencia);
     return 'Evidencia registrada correctamente';
   }
 
   async findAll(): Promise<Evidencia[]> {
-    return await this.evidenciaRepository.find({
-      withDeleted: true,
-    });
+    return await this.evidenciaRepository.find({ withDeleted: true });
   }
 
-  async findOne(id_evidencia_pk: number): Promise<Evidencia> {
+  async findOne(id: number): Promise<Evidencia> {
     const evidencia = await this.evidenciaRepository.findOne({
-      where: { id_evidencia_pk },
+      where: { id_evidencia_pk: id },
       withDeleted: true,
     });
-
     if (!evidencia) throw new NotFoundException('Evidencia no encontrada');
     return evidencia;
   }
 
-  // Actualizar con opción de cambiar imagen
   async update(
-    id_evidencia_pk: number,
-    updateDto: UpdateEvidenciaDto,
-    rutaImagen?: string,
+    id: number,
+    dto: UpdateEvidenciaDto,
+    imgPath?: string,
+    username?: string,
   ): Promise<string> {
-    const evidencia = await this.findOne(id_evidencia_pk);
-    this.evidenciaRepository.merge(evidencia, updateDto);
+    const evidencia = await this.findOne(id);
 
-    if (rutaImagen) {
-      evidencia.ruta_imagen = rutaImagen; // reemplaza solo si hay nueva imagen
+    if (imgPath && username) {
+      if (evidencia.img_evidencia) {
+        await this.deleteImageFile(evidencia.img_evidencia);
+      }
+      evidencia.img_evidencia = await this.moveImageToUserFolder(imgPath, username);
     }
 
+    this.evidenciaRepository.merge(evidencia, dto);
     await this.evidenciaRepository.save(evidencia);
-    return `Evidencia con ID ${id_evidencia_pk} actualizada correctamente`;
+    return `Evidencia con ID ${id} actualizada correctamente`;
   }
 
-  async remove(id_evidencia_pk: number): Promise<string> {
-    const result = await this.evidenciaRepository.softDelete({ id_evidencia_pk });
+  async remove(id: number): Promise<string> {
+    const evidencia = await this.findOne(id);
+
+    if (evidencia.img_evidencia) {
+      await this.deleteImageFile(evidencia.img_evidencia);
+    }
+
+    const result = await this.evidenciaRepository.softDelete({ id_evidencia_pk: id });
     if (result.affected === 0) throw new NotFoundException('Evidencia no encontrada');
-    return `Evidencia con ID ${id_evidencia_pk} eliminada correctamente`;
+    return `Evidencia con ID ${id} eliminada correctamente`;
   }
 
-  async restore(id_evidencia_pk: number): Promise<string> {
-    const result = await this.evidenciaRepository.restore({ id_evidencia_pk });
+  async restore(id: number): Promise<string> {
+    const result = await this.evidenciaRepository.restore({ id_evidencia_pk: id });
     if (result.affected === 0) throw new NotFoundException('Evidencia no encontrada');
-    return `Evidencia con ID ${id_evidencia_pk} restaurada correctamente`;
+    return `Evidencia con ID ${id} restaurada correctamente`;
+  }
+
+  private async moveImageToUserFolder(originalPath: string, username: string): Promise<string> {
+    const userFolder = path.join('./uploads/evidencias', username);
+    const fileName = path.basename(originalPath);
+    const newPath = path.join(userFolder, fileName);
+
+    if (!fs.existsSync(userFolder)) {
+      fs.mkdirSync(userFolder, { recursive: true });
+    }
+
+    if (fs.existsSync(originalPath)) {
+      fs.renameSync(originalPath, newPath);
+      return newPath;
+    }
+
+    return originalPath;
+  }
+
+  private async deleteImageFile(filePath: string): Promise<void> {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 }
