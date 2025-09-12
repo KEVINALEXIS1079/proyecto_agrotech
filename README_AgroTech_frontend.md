@@ -1,130 +1,40 @@
-# AgroTech – Frontend (Vite + React + TypeScript)
+# AgroTech – Frontend  
 
-Proyecto web creado **desde cero** para la plataforma agrícola AgroTech. Este repo contiene el **frontend** (React + Vite + TS) con UI en HeroUI/Tailwind y enrutamiento protegido.
+### Cambios y Mejoras
 
-## Colaboradores
-- Kevin Alexis
-- Darío
+Este commit corresponde a la nueva versión del frontend, comparada con la versión anterior (`frontend-agrotech2`).  
 
-## Stack
-- React 19 + Vite 7 + TypeScript 5
-- TailwindCSS 4 (plugin `@tailwindcss/vite`) + HeroUI
-- React Router DOM 7
-- Axios
-- Lucide-react (iconos)
-- ESLint 9
+## Colaboradores  
+- Kevin Alexis  
+- Dario  
 
-## Requisitos
-- Node.js 18+ (recomendado 20+)
-- Backend expuesto vía REST (ver endpoints usados abajo)
+## Cambios principales  
 
-## Configuración de entorno
-Crear `.env` (ya presente) y ajustar:
-```
-VITE_API_URL=http://localhost:4000/api/v1   # URL base del backend
-VITE_APP_NAME=AgroTech                      # Nombre de la app (opcional)
-VITE_BYPASS_AUTH=true                       # true para omitir login en desarrollo
-# VITE_ADMIN_TOKEN=...                      # opcional: token admin para /usuarios (alta de usuarios)
-```
+1. **Módulo de Usuarios**
+   - Nuevo formulario para **crear usuarios** con campos validados y carga de imágenes.
+   - Integración de **roles/permiso** en el registro de usuario (`id_rol_fk`).
+   - Página de **lista de usuarios** mejorada con tabla y acciones.  
+   - ⚠️ **EditarUsuario:** se implementó la estructura inicial, pero aún presenta error al manejar el `id` del usuario seleccionado. Está pendiente de corrección.
 
-## Scripts
-```bash
-npm install
-npm run dev      # http://localhost:3000
-npm run build
-npm run preview
-npm run lint
-```
+2. **Módulo de Actividades**
+   - Creada página de **ListaActividades** con tabla, acciones de edición y eliminación.
+   - Definida navegación dinámica con `EDIT_PATH(id)` para acceder a la vista de edición.
 
-## Rutas de la app
-- **Públicas**: `/start`, `/login`, `/register`, `/recover`, `/code`, `/recovery`
-- **Privadas** (con layout protegido): `/home`, `/cultivos`, `/historial-cultivo`, `/registrar-cultivo`, `/actividades`
+3. **Layout General**
+   - Ajustado `ProtectedLayout` para incluir **notificaciones**.  
+   - Ejemplo implementado: notificación que indica *“El cultivo de cacao presenta bajos niveles de pH”*.  
+   - Corrección en el contador de notificaciones para evitar duplicados.  
 
-**Guards** (`src/routes/guards.tsx`):
-- `ProtectedRoute` — exige token para acceder a privadas.
-- `PublicOnlyRoute` — redirige a `/home` si ya hay token.
-- `RequireRecoveryEmail` — exige `recoveryEmail` (flujo recuperación).
-- `RequireRecoveryCode` — exige `recoveryEmail` + `recoveryCode`.
+4. **UI/UX**
+   - Se estandarizó el uso de **HeroUI** para inputs, botones, tablas y selects.
+   - Uso de iconos con **Lucide-react** para acciones (editar, eliminar, notificaciones).  
 
-## UI y estilos
-- **Tailwind v4** sin `tailwind.config.js`; la configuración vive en `src/index.css`:
-  - `@import "tailwindcss";`
-  - `@plugin "./hero.ts";` ← integra HeroUI
-  - `@source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}"`
-- Tema HeroUI registrado en `src/hero.ts`.
-- Proveedor de UI en `main.tsx` (`<HeroUIProvider>`).
+## Mejoras frente a la versión anterior
+- Se unificó la lógica de usuarios, roles y actividades.  
+- Se integraron formularios dinámicos con validaciones y `FormData` para imágenes.  
+- La nueva versión es más consistente en diseño, gracias a HeroUI y la estructura modular.  
 
-## Estructura principal
-```
-src/
-├─ App.tsx
-├─ main.tsx
-├─ index.css
-├─ hero.ts
-├─ layouts/
-│  ├─ AppLayout.tsx
-│  └─ ProtectedLayout.tsx
-├─ routes/
-│  └─ guards.tsx
-├─ pages/
-│  ├─ start.tsx
-│  ├─ auth_page/
-│  │  ├─ login.tsx
-│  │  ├─ register.tsx
-│  │  ├─ recover.tsx
-│  │  ├─ code.tsx
-│  │  └─ ChangePassword.tsx
-│  └─ page_private/
-│     ├─ home.tsx
-│     ├─ actividad/actividades.tsx
-│     └─ cultivo/
-│        ├─ cultivos.tsx
-│        ├─ registrarCultivo.tsx
-│        └─ historialCultivo.tsx
-├─ components/
-│  └─ menu.tsx
-├─ services/
-│  ├─ api.ts
-│  ├─ auth.ts
-│  ├─ users.ts
-│  ├─ cultivo.ts
-│  └─ actividad.ts
-└─ types/
-   └─ auth.ts
-```
-
-## Servicios y endpoints usados
-- Autenticación (`src/services/auth.ts`)
-  - `POST /auth/login`
-  - `POST /usuarios/solicitar-recuperacion`
-  - `POST /usuarios/verificar-codigo`
-  - `POST /usuarios/cambiar-contrasena`
-- Usuarios (`src/services/users.ts`)
-  - `POST /usuarios` (requiere token; admite `VITE_ADMIN_TOKEN` en desarrollo)
-- Cultivos (`src/services/cultivo.ts`)
-  - `GET /cultivos`
-  - `POST /cultivos`
-  - `GET/PUT/DELETE /cultivos/:id` (expuestos en funciones utilitarias)
-- Actividades (`src/services/actividad.ts`)
-  - `GET /actividades`
-  - `POST /actividades`
-
-**Interceptor Axios** (`src/services/api.ts`):
-- Añade `Authorization: Bearer <token>` si existe en `localStorage`.
-- En `401` limpia token y redirige a `/login`.
-
-## Flujo de autenticación implementado
-- **Login**: usa `loginService` (`/auth/login`). `VITE_BYPASS_AUTH=true` permite omitir en dev.
-- **Recuperación**: `recover → code → recovery` con persistencia en `localStorage` (`recoveryEmail`, `recoveryCode`) y guards para navegación.
-- **Register**: formulario con alta de usuario (rol por defecto invitado; estado activo).
-
-## Estado actual
-- Layout protegido con sidebar y submenú contextual para **Cultivos**.
-- Dashboard inicial en `Home`.
-- Formularios y vistas para **Cultivos** y **Actividades**.
-- Assets en `public/` (imágenes de portada y logotipos).
-
-## Notas
-- Servidor de desarrollo: puerto `3000` (configurado en `vite.config.ts`).
-- Alias de importación: `@` → `/src`.
-- ESLint habilitado con reglas para React/TS.
+## Pendientes
+- Corregir bug en **EditarUsuario** (manejo de `id`).  
+- Implementar búsqueda y filtros en las tablas de usuarios y actividades.  
+- Conectar notificaciones con datos reales del backend.  

@@ -1,0 +1,113 @@
+// src/modules/evidencia/dto/create-evidencia.dto.ts
+import {
+  IsNotEmpty,
+  IsDate,
+  IsString,
+  MaxLength,
+  IsInt,
+  IsOptional,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateEvidenciaDto {
+  @ApiProperty({
+    description: 'Nombre de la evidencia',
+    example: 'Registro fotográfico de la poda',
+    maxLength: 255,
+  })
+  @IsString({ message: 'El nombre de la evidencia debe ser texto' })
+  @IsNotEmpty({ message: 'El nombre de la evidencia no puede estar vacío' })
+  @MaxLength(255, {
+    message: 'El nombre de la evidencia no puede exceder los 255 caracteres',
+  })
+  nombre_evidencia: string;
+
+  @ApiProperty({
+    description: 'Descripción de la evidencia',
+    example:
+      'Fotografías que muestran el estado del cultivo después de la poda realizada en el lote 2',
+    maxLength: 500,
+  })
+  @IsString({ message: 'La descripción de la evidencia debe ser texto' })
+  @IsNotEmpty({ message: 'La descripción de la evidencia no puede estar vacía' })
+  @MaxLength(500, {
+    message: 'La descripción de la evidencia no puede exceder los 500 caracteres',
+  })
+  descripcion_evidencia: string;
+
+  @ApiProperty({
+    description: 'Fecha en que se registró la evidencia (formato YYYY-MM-DD)',
+    example: '2025-09-05',
+  })
+  @Type(() => Date)
+  @IsDate({
+    message:
+      'La fecha de la evidencia debe ser una fecha válida con formato Año-Mes-Día',
+  })
+  @IsNotEmpty({ message: 'La fecha de la evidencia no puede estar vacía' })
+  fecha_evidencia: Date;
+
+  @ApiProperty({
+    description: 'Observaciones adicionales de la evidencia',
+    example: 'El cultivo presenta un desarrollo saludable tras la poda',
+    maxLength: 500,
+  })
+  @IsString({ message: 'La observación de la evidencia debe ser texto' })
+  @IsNotEmpty({
+    message: 'La observación de la evidencia no puede estar vacía',
+  })
+  @MaxLength(500, {
+    message:
+      'La observación de la evidencia no puede exceder los 500 caracteres',
+  })
+  observacion_evidencia: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Fecha de inicio del registro de la evidencia (formato YYYY-MM-DD)',
+    example: '2025-09-01',
+  })
+  @Type(() => Date)
+  @IsDate({
+    message:
+      'La fecha de inicio de la evidencia debe ser una fecha válida con formato Año-Mes-Día',
+  })
+  @IsOptional()
+  fecha_inicio_evidencia?: Date;
+
+  @ApiPropertyOptional({
+    description:
+      'Fecha de fin del registro de la evidencia (formato YYYY-MM-DD)',
+    example: '2025-09-04',
+  })
+  @Type(() => Date)
+  @IsDate({
+    message:
+      'La fecha de fin de la evidencia debe ser una fecha válida con formato Año-Mes-Día',
+  })
+  @IsOptional()
+  fecha_fin_evidencia?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Ruta de la imagen asociada a la evidencia',
+    example: '/uploads/evidencias/poda_2025.jpg',
+    maxLength: 255,
+  })
+  @IsString({ message: 'La ruta de la imagen debe ser texto' })
+  @MaxLength(255, {
+    message: 'La ruta de la imagen no puede exceder los 255 caracteres',
+  })
+  @IsOptional()
+  img_evidencia?: string | null;
+
+  @ApiProperty({
+    description:
+      'Identificador de la actividad a la que pertenece la evidencia (relación con tabla actividades)',
+    example: 12,
+  })
+  @Type(() => Number)
+  @IsInt({ message: 'El ID de la actividad debe ser un número entero' })
+  @IsNotEmpty({ message: 'El ID de la actividad no puede estar vacío' })
+  id_actividad_fk: number;
+}
