@@ -1,0 +1,1 @@
+export default function EditarPageFinanzas() { return <div className='p-6'>Finanzas Editar</div> }

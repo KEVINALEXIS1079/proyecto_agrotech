@@ -1,0 +1,1 @@
+export async function updateiot(id:number,payload:any){ /* TODO */ }

@@ -1,0 +1,1 @@
+export default function CrearPageInventario(){return <div className='p-6'>Inventario Crear</div>}

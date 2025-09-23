@@ -1,0 +1,1 @@
+export async function updatecultivo(id:number,payload:any){ /* TODO */ }

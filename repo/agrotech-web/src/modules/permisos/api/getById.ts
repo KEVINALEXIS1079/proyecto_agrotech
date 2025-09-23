@@ -1,0 +1,1 @@
+export async function getpermisosById(id:number){ /* TODO */ }

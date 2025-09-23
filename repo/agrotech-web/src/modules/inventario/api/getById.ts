@@ -1,0 +1,1 @@
+export async function getiotById(id:number){ /* TODO */ }

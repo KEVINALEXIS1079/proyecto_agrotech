@@ -1,0 +1,1 @@
+export default function FinanzasPage() {  return <div className='p-6'>Finanzas</div> }

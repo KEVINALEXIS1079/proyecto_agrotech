@@ -1,0 +1,1 @@
+export * as permisosApi from './api'; export * as permisosModel from './model/types';

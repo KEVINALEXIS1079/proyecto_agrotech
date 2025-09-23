@@ -1,0 +1,1 @@
+export default function ListaPageInventario(){return <div className='p-6'>Inventario Lista</div>}

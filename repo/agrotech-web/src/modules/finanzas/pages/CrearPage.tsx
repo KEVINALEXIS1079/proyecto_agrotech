@@ -1,0 +1,1 @@
+export default function CrearPageFinanzas() { return <div className='p-6'>Finanzas Crear</div> }

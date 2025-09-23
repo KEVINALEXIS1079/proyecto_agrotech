@@ -1,0 +1,1 @@
+export async function getcultivoById(id:number){ /* TODO */ }

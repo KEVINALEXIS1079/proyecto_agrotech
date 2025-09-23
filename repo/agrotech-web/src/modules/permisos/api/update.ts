@@ -1,0 +1,1 @@
+export async function updatepermisos(id:number,payload:any){ /* TODO */ }
