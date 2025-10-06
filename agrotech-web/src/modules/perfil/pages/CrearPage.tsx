@@ -1,1 +1,0 @@
-export default function CrearPage(){return <div className='p-6'>iot Crear</div>}

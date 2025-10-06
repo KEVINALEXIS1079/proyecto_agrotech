@@ -1,1 +1,0 @@
-export async function createpermisos(payload:any){ /* TODO */ }

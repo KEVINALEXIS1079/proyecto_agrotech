@@ -1,141 +1,37 @@
-import { useState } from "react";
-import {
-  Input,
-  Button,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-} from "@heroui/react";
-import { solicitarRecuperacion } from "#/modules/auth/api/auth";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import AuthLayout from "../widgets/AuthLayout";
+import ToastDialog from "../widgets/ToastDialog";
+import AuthBackButton from "../ui/AuthBackButton";
+import AuthLogo from "../ui/AuthLogo";
+import AuthRecoverForm, { type AuthRecoverValues } from "../ui/AuthRecoverForm";
+import { useRecoverRequest } from "../hooks/useRecover";
 
-export default function Recover() {
-  const [email, setEmail] = useState("");
-  const [confirmEmail, setConfirmEmail] = useState("");
-  const [mismatch, setMismatch] = useState(false);
-  const [error, setError] = useState("");
-  const [showError, setShowError] = useState(false); // 👈 modal
-  const [loading, setLoading] = useState(false);
+export default function RecoverPage() {
+  const [msg, setMsg] = useState(""); const [open, setOpen] = useState(false);
+  const { mutateAsync, isPending } = useRecoverRequest();
   const navigate = useNavigate();
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setShowError(false);
-
-    const e1 = email.trim().toLowerCase();
-    const e2 = confirmEmail.trim().toLowerCase();
-    const same = e1 === e2;
-    setMismatch(!same);
-    if (!same) return;
-
-    try {
-      setLoading(true);
-      await solicitarRecuperacion(e1); 
-
-      localStorage.setItem("recoveryEmail", e1);
-      navigate("/code", { state: { email: e1 } });
-    } catch (err: any) {
-      const msg = err?.message || "No se pudo solicitar la recuperación";
-      setError(msg);
-      setShowError(true);
-    } finally {
-      setLoading(false);
-    }
+  async function handleSubmit(v: AuthRecoverValues) {
+    if (!v.correo_usuario) { setMsg("El correo es obligatorio"); setOpen(true); return; }
+    try { await mutateAsync({ correo_usuario: v.correo_usuario }); navigate("/code", { state: { correo: v.correo_usuario } }); }
+    catch (e:any) { setMsg(e?.message || "No se pudo enviar el código"); setOpen(true); }
   }
 
   return (
-    <div className="h-dvh overflow-hidden grid md:grid-cols-[50%_50%] bg-white">
-      <div className="relative hidden md:block">
-        <img src="/public/cacao.jpg" alt="Cacao" className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-black/45" />
-        <div className="absolute inset-0 flex items-center">
-          <div className="pl-[72px] lg:pl-[96px] text-white max-w-[560px]">
-            <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight">Recupera tu acceso</h1>
-            <p className="text-xl lg:text-2xl opacity-95 mt-2">
-              Escribe tu correo y te enviaremos un código para restablecer tu contraseña.
-            </p>
-          </div>
-        </div>
-      </div>
+    <>
+      <AuthLayout
+        
+        title="Recuperar tu acceso"
+        subtitle="Escribe tu correo y te enviaremos un enlace para restablecer tu contraseña."
+        logoSlot={<AuthLogo/>}
+        backSlot={<AuthBackButton/>}
+        formTitle="Verificación"
+      >
+        <AuthRecoverForm onSubmit={handleSubmit} loading={isPending}/>
+      </AuthLayout>
 
-      <div className="h-full flex items-center justify-center p-4 md:p-6">
-        <div className="w-full max-w-[420px]">
-          <div className="grid grid-cols-[32px_1fr_32px] items-center mb-2">
-            <button
-              type="button"
-              aria-label="Volver"
-              className="h-8 w-8 grid place-items-center rounded-full hover:bg-black/5"
-              onClick={() => history.back()}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <div className="flex justify-center">
-              <img src="/LogoTic.png" alt="TIC Yamboró" className="h-12 md:h-16 lg:h-20 w-auto object-contain" />
-            </div>
-            <div />
-          </div>
-
-          <h2 className="text-2xl font-extrabold mb-3 text-center">Verificación</h2>
-
-          <form className="grid gap-3" onSubmit={onSubmit}>
-            <Input
-              label="Correo electrónico"
-              type="email"
-              size="sm"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (showError) setShowError(false);
-                if (mismatch) setMismatch(false);
-              }}
-              required
-            />
-            <Input
-              label="Confirmar correo electrónico"
-              type="email"
-              size="sm"
-              value={confirmEmail}
-              onChange={(e) => {
-                setConfirmEmail(e.target.value);
-                if (showError) setShowError(false);
-                setMismatch(false);
-              }}
-              isInvalid={mismatch}
-              errorMessage={mismatch ? "Los correos no coinciden" : undefined}
-              required
-            />
-
-            <Button
-              color="success"
-              className="w-full h-10 rounded-full"
-              type="submit"
-              isLoading={loading}
-            >
-              Verificar
-            </Button>
-          </form>
-        </div>
-      </div>
-
-      {/* Modal de error */}
-      <Modal isOpen={showError} onOpenChange={setShowError}>
-        <ModalContent>
-          <ModalHeader>No se pudo procesar la solicitud</ModalHeader>
-          <ModalBody>
-            <p>{error}</p>
-          </ModalBody>
-          <ModalFooter>
-            <Button color="danger" onPress={() => setShowError(false)}>
-              Cerrar
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </div>
+      <ToastDialog open={open} title="Recuperación" message={msg} onClose={() => setOpen(false)} variant="warning"/>
+    </>
   );
 }

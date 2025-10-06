@@ -86,7 +86,7 @@ export class CreateUsuarioDto {
     description: 'ID del rol asociado al usuario',
     example: 1,
   })
-  //@IsInt({ message: 'El ID de rol debe ser numérico' }) esta validacion me dio prblemas en el front
+  @IsInt({ message: 'El ID de rol debe ser numérico' })
   @IsNotEmpty({ message: 'Debe indicar el rol del usuario' })
   id_rol_fk: number;
 }

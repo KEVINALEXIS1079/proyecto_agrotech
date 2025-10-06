@@ -12,22 +12,27 @@ import Home from "@/modules/landing/pages/HomePage";
 
 import { ListaPage, CrearPage, EditarPage } from "@/modules/actividad/pages/indePageActividad";
 
-import { Usuarios, ListarUsuario, CrearPageUsuario, EditarPageUsuario } from "@/modules/usuarios/pages/indexPageUsuario";
+import { Usuarios, ListarUsuario, CrearPageUsuario, EditarPageUsuario } from "@/modules/usuarios/usuarios/pages/indexPageUsuario";
 
-import { Cultivo, ListaPageCultivo, CrearPageCultivo, EditarPageCultivo } from "@/modules/cultivo/pages/indexPageCultivo";
+import { Cultivo, ListaPageCultivo, CrearPageCultivo, EditarPageCultivo } from "@/modules/cultivo/cultivo/pages/indexPageCultivo";
 
 import { ListaPageFito, CrearPageFito, EditarPageFito,FitoPage } from "@/modules/fitosanitario/pages/indexPageFito";
 
 import { FinanzasPage, ListaPageFinanzas, CrearPageFinanzas, EditarPageFinanzas } from "@/modules/finanzas/pages/indexPageFinanzas";
 
-import { InventarioPage, ListaPageInventario, CrearPageInventario, EditarPageInventario } from "@/modules/inventario/pages/indexPageInventario";
+import { InventarioPage, ListaPageInventario, CrearPageInventario, EditarPageInventario } from "@/modules/inventario/Almacen/pages/indexPageInventario";
 
 import { PageReportes, ListaPageReporte, CrearPageReporte, EditarPageReporte } from "@/modules/reportes/pages/indexPageReportes";
 
-import { PagePermisos, ListaPagePermisos, CrearPagePermisos, EditarPagePermisos } from "@/modules/permisos/pages/indexPagePermisos";
+import {AsignarPermisosRolPage, AsignarPermisosUsuarioPage, CrearPermisoPage, ListaPermisosPage, QuitarPermisosUsuarioPage} from "@/modules/permisos/permisos/pages/indexPagePermisos";
 
-import { ListaPage as ListaPageIot, CrearPageIot, EditarPageIot, IotPage } from "@/modules/iot/pages/indexPageIot";
+import { ListaPage as ListaPageIot, CrearPageIot, EditarPageIot, IotPage } from "@/modules/iot/Sensor/pages/indexPageIot";
 
+import  {CrearPageTipoIot, ListaPageTipoIot, EditarPageTipoIot}  from "@/modules/iot/TipoSensor/pages/indexPageTipoSensor";
+
+import  CrearPageTipoCultivo  from "@/modules/cultivo/tipoCultivo/pages/crearPage";
+
+import  PerfilPage  from "@/modules/usuarios/perfil/pages/PerfilPage";
 // Guards
 import {
   ProtectedRoute,
@@ -123,11 +128,14 @@ export default function AppRoutes() {
         <Route path="/usuario-registrar" element={<CrearPageUsuario />} />
         <Route path="/usuarios/editar/:id" element={<EditarPageUsuario />} />
 
+        {/* Perfil */}
+        <Route path="/perfil" element={<PerfilPage />} />
         {/* Cultivos */}
         <Route path="/cultivos" element={<Cultivo />} />
         <Route path="/registrar-cultivo" element={<CrearPageCultivo />} />
         <Route path="/editar-cultivo" element={<EditarPageCultivo />} />
         <Route path="/listar-cultivo" element={<ListaPageCultivo />} />
+        <Route path="/tipo-cultivo/crear" element={<CrearPageTipoCultivo />} />
 
         {/* Fitosanitario */}
         <Route path="/fitos" element={<FitoPage />} />
@@ -154,16 +162,22 @@ export default function AppRoutes() {
         <Route path="/editar-reporte" element={<EditarPageReporte />} />
 
         {/* Permisos */}
-        <Route path="/permisos" element={<PagePermisos />} />
-        <Route path="/lista-permisos" element={<ListaPagePermisos />} />
-        <Route path="/crear-permiso" element={<CrearPagePermisos />} />
-        <Route path="/editar-permiso" element={<EditarPagePermisos />} />
+        <Route path="/permisos-asignar-rol" element={<AsignarPermisosRolPage />} />
+        <Route path="/permisos-asignar-usuario" element={<AsignarPermisosUsuarioPage />} />
+        <Route path="/lista-permisos" element={<ListaPermisosPage />} />
+        <Route path="/crear-permiso" element={<CrearPermisoPage />} />
+        <Route path="/quitar-permisos-usuario" element={<QuitarPermisosUsuarioPage />} />
+          
+
 
         {/* IoT */}
-        <Route path="/iot" element={<IotPage />} />
-        <Route path="/lista-iot" element={<ListaPageIot />} />
+       <Route path="/iot" element={<IotPage />} />
         <Route path="/iot-registrar" element={<CrearPageIot />} />
-        <Route path="/Parámetro Sensor" element={<EditarPageIot />} />
+       <Route path="/iot/editar/:id" element={<EditarPageIot />} />
+        <Route path="/tipo-sensor/crear" element={<CrearPageTipoIot />} />
+        <Route path="/tipo-sensor" element={<ListaPageTipoIot />} />
+        <Route path="/tipo-sensor/editar/:id" element={<EditarPageTipoIot />} />
+
 
       </Route>
       {/* Fallback */}

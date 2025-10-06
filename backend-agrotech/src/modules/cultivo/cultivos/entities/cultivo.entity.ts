@@ -27,8 +27,8 @@ export class Cultivo {
   @Column()
   descripcion_cultivo: string;
 
-  @Column()
-  img_cultivo:string;
+ @Column({ type: 'varchar',  nullable: true, length: 255 })
+  img_cultivo: string | null;
 
   @Column()
   estado_cultivo:string;

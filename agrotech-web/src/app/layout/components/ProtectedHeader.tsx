@@ -1,4 +1,5 @@
-import { Input, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip, User as UserCard, Avatar, Divider } from "@heroui/react";
+import { Link, useNavigate } from "react-router-dom";
+import { Input, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip, User as UserCard, Avatar } from "@heroui/react";
 import { Search, Settings, UserRound, LogOut, Mail } from "lucide-react";
 import HeaderNotifications from "./HeaderNotifications";
 
@@ -16,6 +17,8 @@ export default function ProtectedHeader({
   notifications: Notification[];
   onLogout: () => void;
 }) {
+  const navigate = useNavigate();
+
   return (
     <header className="h-16 px-4 md:px-6 flex items-center gap-3 bg-white sticky top-0 z-30 shadow-sm">
       <img src="/LogoTic.png" alt="TIC" className="h-10 md:h-12 w-auto object-contain" />
@@ -58,12 +61,24 @@ export default function ProtectedHeader({
                 {user.role ?? "Invitado"}
               </Chip>
             </DropdownItem>
-            <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
+
+            <DropdownItem
+              key="settings"
+              startContent={<Settings className="h-4 w-4" />}
+              onPress={() => navigate("/perfil/ajustes")}
+            >
               Configuración
             </DropdownItem>
-            <DropdownItem key="profile-btn" startContent={<UserRound className="h-4 w-4" />}>
+
+            <DropdownItem
+              key="profile-btn"
+              as={Link}
+              to="/perfil"
+              startContent={<UserRound className="h-4 w-4" />}
+            >
               Mi perfil
             </DropdownItem>
+
             <DropdownItem
               key="logout"
               className="text-danger"

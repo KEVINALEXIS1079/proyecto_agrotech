@@ -7,37 +7,41 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 
 import { Usuario } from '../modules/usuario/usuarios/entities/usuario.entity';
 import { Rol } from '../modules/usuario/roles/entities/rol.entity';
-import { CreateAdminSeed} from '../database/seeds/create-admin.seed';
+import { CreateAdminSeed } from '../database/seeds/create-admin.seed';
 import { CreateRolesSeed } from 'src/database/seeds/create-roles.seed';
 
-import { LotesModule } from '../modules/cultivo/lotes/lotes.module';
-import { SublotesModule } from '../modules/cultivo/sublotes/sublotes.module';
-import { CultivosModule } from '../modules/cultivo/cultivos/cultivos.module';
-import { TipoCultivoModule } from '../modules/cultivo/tipo-cultivo/tipo-cultivo.module';
-import { UsuariosModule } from '../modules/usuario/usuarios/usuarios.module';
-import { RolesModule } from '../modules/usuario/roles/roles.module';
-import { ProveedoresModule } from '../modules/inventario/proveedores/proveedores.module';
-import { InsumosModule } from '../modules/inventario/insumos/insumos.module';
-import { AlmacenModule } from '../modules/inventario/almacenes/almacenes.module';
-import { CategoriasModule } from '../modules/inventario/categorias/categorias.module';
-import { EpasModule } from '../modules/fitosanitario/epas/epas.module';
-import { TiposEpasModule } from '../modules/fitosanitario/tipo-epa/tipo-epa.module';
-import { InsumoProveedorModule } from '../modules/inventario/insumo-proveedor/insumo-proveedor.module';
-import { ActividadesModule } from '../modules/actividad/actividades/actividades.module';
-import { CultivosActividadesModule } from '../modules/actividad/cultivo-actividad/cultivo-actividad.module';
-import { SensoresModule } from '../modules/iot/sensores/sensores.module';
-import { TipoSensorModule } from '../modules/iot/tipo-sensor/tipo_sensor.module';
-import { EvidenciasModule } from '../modules/actividad/evidencias/evidencias.module';
-import { UsuarioActividadModule } from '../modules/actividad/usuario-actividad/usuario-actividad.module';
+import { LotesModule } from '../modules/cultivo/lotes/service/lotes.module';
+import { SublotesModule } from '../modules/cultivo/sublotes/service/sublotes.module';
+import { CultivosModule } from '../modules/cultivo/cultivos/service/cultivos.module';
+import { TipoCultivoModule } from '../modules/cultivo/tipo-cultivo/service/tipo-cultivo.module';
+import { UsuariosModule } from '../modules/usuario/usuarios/service/usuarios.module'; 
+import { RolesModule } from '../modules/usuario/roles/service/roles.module';
+import { ProveedoresModule } from '../modules/inventario/proveedores/service/proveedores.module';
+import { InsumosModule } from '../modules/inventario/insumos/service/insumos.module';
+import { AlmacenModule } from '../modules/inventario/almacenes/service/almacenes.module';
+import { CategoriasModule } from '../modules/inventario/categorias/service/categorias.module';
+import { EpasModule } from '../modules/fitosanitario/epas/service/epas.module';
+import { TiposEpasModule } from '../modules/fitosanitario/tipo-epa/service/tipo-epa.module';
+import { InsumoProveedorModule } from '../modules/inventario/insumo-proveedor/service/insumo-proveedor.module';
+import { ActividadesModule } from '../modules/actividad/actividades/service/actividades.module';
+import { CultivosActividadesModule } from 'src/modules/actividad/cultivo-actividad/service/cultivo-actividad.module';
+import { SensoresModule } from '../modules/iot/sensores/service/sensores.module';
+import { TipoSensorModule } from '../modules/iot/tipo-sensor/service/tipo_sensor.module';
+import { EvidenciasModule } from '../modules/actividad/evidencias/service/evidencias.module';
+import { UsuarioActividadModule } from '../modules/actividad/usuario-actividad/service/usuario-actividad.module';
 import { AuthModule } from '../modules/authentication/auth/auth.module';
-import { PermisosModule } from '../common/middleware/permisos/permisos.module';
-import { MovimientoInsumoModule } from '../modules/inventario/movimiento-insumo/movimiento-insumo.module';
-import { CorreoModule } from '../common/services/correo/correo.module';
-import { ProductosModule } from 'src/modules/finanzas/productos/productos.module';
-import { MovimientoProductoModule } from 'src/modules/finanzas/movimiento-producto/movimiento-producto.module';
-import { VentasModule } from 'src/modules/finanzas/ventas/ventas.module';
-import { TipoActividadModule } from 'src/modules/actividad/tipo-actividad/tipo-actividad.module';
 
+// 👇 IMPORT CORREGIDO: este es el módulo que contiene tu PermisosController
+import { PermisosModule } from 'src/modules/permisos/service/permisos.module';
+
+import { MovimientoInsumoModule } from '../modules/inventario/movimiento-insumo/service/movimiento-insumo.module';
+import { CorreoModule } from '../common/services/correo/correo.module';
+import { ProductosModule } from 'src/modules/finanzas/productos/service/productos.module';
+import { MovimientoProductoModule } from 'src/modules/finanzas/movimiento-producto/service/movimiento-producto.module';
+import { VentasModule } from 'src/modules/finanzas/ventas/service/ventas.module';
+import { TipoActividadModule } from 'src/modules/actividad/tipo-actividad/service/tipo-actividad.module';
+import { Permiso } from 'src/modules/permisos/entities/permiso.entity';
+import { PermisoModule } from 'src/modules/permiso-module/entities/permiso-module.entity';
 
 @Module({
   imports: [
@@ -53,21 +57,24 @@ import { TipoActividadModule } from 'src/modules/actividad/tipo-actividad/tipo-a
       }),
       inject: [ConfigService],
     }),
-TypeOrmModule.forRoot({
-  type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT!, 10),
-  username: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  autoLoadEntities: true,
-  synchronize: process.env.NODE_ENV !== 'production',
-  retryDelay: 3000,
-  retryAttempts: 10,
-}),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT!, 10),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      autoLoadEntities: true,
+      synchronize: process.env.NODE_ENV !== 'production',
+      retryDelay: 3000,
+      retryAttempts: 10,
+    }),
 
-    TypeOrmModule.forFeature([Usuario, Rol]), 
-    UsuariosModule,
+    //  Incluimos entidades necesarias
+    TypeOrmModule.forFeature([Usuario, Rol, Permiso, PermisoModule]),
+
+    AuthModule,
+    UsuariosModule, 
     RolesModule,
     ProveedoresModule,
     InsumosModule,
@@ -86,16 +93,19 @@ TypeOrmModule.forRoot({
     TipoSensorModule,
     EvidenciasModule,
     UsuarioActividadModule,
-    AuthModule,
     PermisosModule,
     MovimientoInsumoModule,
     CorreoModule,
     ProductosModule,
     MovimientoProductoModule,
     VentasModule,
-    TipoActividadModule
+    TipoActividadModule,
   ],
   controllers: [AppController],
-  providers: [AppService, CreateAdminSeed,CreateRolesSeed],
+  providers: [
+    AppService,
+    CreateAdminSeed,
+    CreateRolesSeed,
+  ],
 })
 export class AppModule {}

@@ -1,1 +1,0 @@
-export async function removecultivo(id:number){ /* TODO */ }
