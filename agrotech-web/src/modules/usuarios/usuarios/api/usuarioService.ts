@@ -1,4 +1,4 @@
-// src/modules/usuarios/usuarios/api/usuarioService.ts
+
 import { api, connectSocket } from "@/shared/api/client";
 import type { Socket } from "socket.io-client";
 
@@ -146,9 +146,9 @@ class UsuarioService {
     return data as { message: string };
   }
 
-  /* ===== WebSocket (solo escuchar) ===== */
+
   private namespace(): string {
-    // IMPORTANTE: gateway en /usuarios (no /api/v1/usuarios)
+
     return (import.meta.env.VITE_USERS_WS_NS as string) || "/usuarios";
   }
 
@@ -174,15 +174,12 @@ class UsuarioService {
     this.socket = null;
   }
 
-  // Eventos del backend (hoy)
   onListChanged(cb: () => void)      { this.on("usuarios:lista_actualizada", cb); }
   offListChanged(cb?: () => void)    { this.off("usuarios:lista_actualizada", cb); }
 
-  // Si luego emites por usuario:
   onProfileChanged(cb: () => void)   { this.on("usuarios:perfil_actualizado", cb); }
   offProfileChanged(cb?: () => void) { this.off("usuarios:perfil_actualizado", cb); }
 
-  // Si más adelante emites CRUD explícitos, puedes mantener estos:
   onCreated(cb: (u: any) => void)    { this.on("usuarioCreated", cb); }
   onUpdated(cb: (u: any) => void)    { this.on("usuarioUpdated", cb); }
   onDeleted(cb: (u: any) => void)    { this.on("usuarioDeleted", cb); }
@@ -193,7 +190,7 @@ class UsuarioService {
 
 export const usuarioService = new UsuarioService();
 
-/* ========= Wrappers ========= */
+
 export const listUsuarios = (params?: {
   page?: number; limit?: number; q?: string;
   estado?: "activo" | "inactivo" | "eliminado" | "todos";

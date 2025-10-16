@@ -11,16 +11,14 @@ export function useUsuariosLive() {
       qc.invalidateQueries({ queryKey: ["usuarios", "list"], exact: false });
     };
 
-    // Conectar una vez al namespace correcto y suscribirse
+
     usuarioService.connect();
     usuarioService.onListChanged(invalidate);
 
-    // Si luego usas perfil:
-    // usuarioService.onProfileChanged(invalidate);
 
     return () => {
       usuarioService.offListChanged();
-      // usuarioService.offProfileChanged();
+ 
     };
   }, [qc]);
 }

@@ -7,7 +7,6 @@ export function startUsuariosRealtime(qc: QueryClient) {
   if (started) return;
   started = true;
 
-  // 👇 Ajusta si tu server usa otro namespace WS
   const socket = connectSocket("/api/v1/usuarios");
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["usuarios"] });
@@ -16,7 +15,6 @@ export function startUsuariosRealtime(qc: QueryClient) {
     socket.on(ev, invalidate)
   );
 
-  // log dev
   if (import.meta.env.DEV) {
     socket.onAny((event, ...args) => console.debug("[ws usuarios]", event, args?.[0]));
   }

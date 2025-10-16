@@ -619,13 +619,13 @@ export default function ListaPermisosPage() {
   const [mode, setMode] = useState<"usuario" | "rol">("usuario");
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(1200px_600px_at_10%_-10%,rgba(16,185,129,0.12),transparent),radial-gradient(1000px_500px_at_90%_10%,rgba(16,185,129,0.12),transparent)] dark:bg-[radial-gradient(1200px_600px_at_10%_-10%,rgba(16,185,129,0.10),transparent),radial-gradient(1000px_500px_at_90%_10%,rgba(16,185,129,0.10),transparent)] p-4 md:p-8">
+    <div className="">
       <div className="mx-auto max-w-7xl space-y-5">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-emerald-500 to-emerald-700 bg-clip-text text-transparent">
+              <span className="">
                 Gestión de permisos
               </span>
             </h1>

@@ -180,7 +180,6 @@ export default function UsuariosFeature() {
         )}
       </AnimatePresence>
 
-      {/* Modales (se mantienen sin cambios funcionales) */}
       <UserDetailModal
         user={ver}
         isOpen={!!ver}
