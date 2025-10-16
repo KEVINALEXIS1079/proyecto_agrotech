@@ -1,25 +1,38 @@
+// src/modules/auth/hooks/useRecover.ts
 import { useMutation } from "@tanstack/react-query";
 import { recoverRequest, recoverVerify, recoverChange } from "../api/auth";
 
+// -------- Paso 1: solicitar código
+type RecoverReqData = { message: string };
+type RecoverReqVars = { email: string };
+type RecoverErr = Error;
+
 export function useRecoverRequest() {
-  return useMutation({
+  return useMutation<RecoverReqData, RecoverErr, RecoverReqVars>({
     mutationKey: ["auth", "recover", "request"],
-    mutationFn: async ({ correo_usuario }: { correo_usuario: string }) => await recoverRequest(correo_usuario),
+    mutationFn: ({ email }) => recoverRequest(email),
   });
 }
+
+// -------- Paso 2: verificar código
+type RecoverVerifyData = { message: string };
+type RecoverVerifyVars = { email: string; codigo: string };
 
 export function useRecoverVerify() {
-  return useMutation({
+  return useMutation<RecoverVerifyData, RecoverErr, RecoverVerifyVars>({
     mutationKey: ["auth", "recover", "verify"],
-    mutationFn: async ({ correo_usuario, codigo }: { correo_usuario: string; codigo: string }) =>
-      await recoverVerify(correo_usuario, codigo),
+    mutationFn: ({ email, codigo }) => recoverVerify(email, codigo),
   });
 }
 
+// -------- Paso 3: cambiar contraseña con código
+type RecoverChangeData = { message: string };
+type RecoverChangeVars = { email: string; nuevaContrasena: string; codigo: string };
+
 export function useRecoverChange() {
-  return useMutation({
+  return useMutation<RecoverChangeData, RecoverErr, RecoverChangeVars>({
     mutationKey: ["auth", "recover", "change"],
-    mutationFn: async (payload: { correo_usuario: string; contrasena_usuario: string; codigo: string }) =>
-      await recoverChange(payload.correo_usuario, payload.contrasena_usuario, payload.codigo),
+    mutationFn: ({ email, nuevaContrasena, codigo }) =>
+      recoverChange(email, nuevaContrasena, codigo),
   });
 }

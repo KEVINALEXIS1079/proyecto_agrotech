@@ -1,1 +1,0 @@
-export * as almacenApi from './api'; export * as almacenModel from './model/types';

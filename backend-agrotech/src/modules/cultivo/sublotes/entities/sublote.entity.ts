@@ -16,23 +16,16 @@ export class Sublote {
   @PrimaryGeneratedColumn()
   id_sublote_pk: number;
 
-  // Coordenada de latitud del sublote (formato numérico)
-  @Column({ type: 'float' })
-  latitud_sublote: number;
+  @Column({ type: 'float', nullable: false })
+  area_sublote: number;
 
-  // Coordenada de longitud del sublote (formato numérico)
-  @Column({ type: 'float' })
-  longitud_sublote: number;
+  @Column({ type: 'json', nullable: false })
+  coordenadas_sublote: { latitud_sublote: number; longitud_sublote: number }[];
 
   // Nombre asignado al sublote
   @Column({ type: 'varchar', length: 100 })
   nombre_sublote: string;
 
-  // Descripción breve del sublote
-  @Column({ type: 'text' })
-  descripcion_sublote: string;
-
-  
   /*
       Relación muchos-a-uno:
       Varios sublotes pueden pertenecer a un mismo lote.
@@ -52,5 +45,4 @@ export class Sublote {
   // Fecha de eliminación lógica (soft delete)
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
   delete_at: Date | null;
-
 }

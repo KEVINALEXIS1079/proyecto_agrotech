@@ -22,3 +22,13 @@ export interface Sensor  {
   };
   delete_at: string | null;
 };
+
+export type SensorDTO = {
+  nombre_sensor: string;
+  valor_minimo: number;
+  valor_maximo: number;
+  fecha_inicio_sensor: string;
+  fecha_fin_sensor?: string;
+  id_cultivo_fk: number;
+  id_tipo_sensor_fk: number;
+};

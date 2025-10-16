@@ -1,46 +1,57 @@
 // src/routes/guards.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
 const isAuthenticated = () => Boolean(localStorage.getItem("token"));
-const getRecoveryEmail = () => localStorage.getItem("recoveryEmail");
-const getRecoveryCode  = () => localStorage.getItem("recoveryCode");
+const LS_KEYS = { email: "recoveryEmail", code: "recoveryCode" } as const;
+const getRecoveryEmail = () => localStorage.getItem(LS_KEYS.email) || "";
+const getRecoveryCode  = () => localStorage.getItem(LS_KEYS.code)  || "";
 
-// Rutas privadas: requieren login (/home, /cultivos, etc.)
+/* PRIVADAS */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />;
+  const location = useLocation();
+  return isAuthenticated()
+    ? <>{children}</>
+    : <Navigate to="/login" replace state={{ from: location }} />; // ← antes no enviaba state
 }
 
-// Públicas solo si NO estás logueado (/login, /register, /start, opcional /recover)
+/* PÚBLICAS SOLO SIN LOGIN */
 export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
-  return isAuthenticated() ? <Navigate to="/home" replace /> : <>{children}</>;
+  return isAuthenticated()
+    ? <Navigate to="/home" replace />
+    : <>{children}</>;
 }
 
-/** /code requiere email (lo setea /recover) */
+/* /code requiere email */
 export function RequireRecoveryEmail({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const fromStateEmail = ((location.state as { email?: string } | null)?.email) || "";
-  if (fromStateEmail) localStorage.setItem("recoveryEmail", fromStateEmail);
+  const stateEmail = (location.state as { email?: string } | null)?.email || "";
+
+  useEffect(() => {
+    if (stateEmail) localStorage.setItem(LS_KEYS.email, stateEmail);
+  }, [stateEmail]);
 
   const email = getRecoveryEmail();
-  if (!email) return <Navigate to="/recover" replace />;
+  if (!email) return <Navigate to="/recover" replace state={{ from: location }} />;
   return <>{children}</>;
 }
 
-/** /change-password (o /recovery) requiere email + código (los setea /code) */
+/* /change-password requiere email + code */
 export function RequireRecoveryCode({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const fromState = (location.state as { email?: string; codigo?: string } | null) || {};
   const stateEmail = fromState.email || "";
   const stateCode  = fromState.codigo || "";
 
-  if (stateEmail) localStorage.setItem("recoveryEmail", stateEmail);
-  if (stateCode)  localStorage.setItem("recoveryCode",  stateCode);
+  useEffect(() => {
+    if (stateEmail) localStorage.setItem(LS_KEYS.email, stateEmail);
+    if (stateCode)  localStorage.setItem(LS_KEYS.code,  stateCode);
+  }, [stateEmail, stateCode]);
 
   const email = getRecoveryEmail();
   const code  = getRecoveryCode();
 
-  if (!email) return <Navigate to="/recover" replace />;
-  if (!code)  return <Navigate to="/code" replace />;
+  if (!email) return <Navigate to="/recover" replace state={{ from: location }} />;
+  if (!code)  return <Navigate to="/code"    replace state={{ from: location, email }} />;
   return <>{children}</>;
 }

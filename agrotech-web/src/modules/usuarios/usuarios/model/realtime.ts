@@ -1,0 +1,23 @@
+import { connectSocket } from "@/shared/api/client";
+import type { QueryClient } from "@tanstack/react-query";
+
+let started = false;
+
+export function startUsuariosRealtime(qc: QueryClient) {
+  if (started) return;
+  started = true;
+
+  // 👇 Ajusta si tu server usa otro namespace WS
+  const socket = connectSocket("/api/v1/usuarios");
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["usuarios"] });
+
+  ["create", "update", "remove", "restore", "created", "updated", "deleted"].forEach((ev) =>
+    socket.on(ev, invalidate)
+  );
+
+  // log dev
+  if (import.meta.env.DEV) {
+    socket.onAny((event, ...args) => console.debug("[ws usuarios]", event, args?.[0]));
+  }
+}

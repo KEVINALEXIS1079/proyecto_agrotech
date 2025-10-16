@@ -1,0 +1,1622 @@
+te voy a pasar todo
+
+client global del front
+import axios, { AxiosError } from "axios";
+import { io, Socket } from "socket.io-client";
+
+// ----------------------
+// Axios centralizado
+// ----------------------
+const api = axios.create({
+baseURL: import.meta.env.VITE_API_URL ?? "[http://localhost:4000/api/v1](http://localhost:4000/api/v1)",
+});
+
+function extractApiMessage(data: any): string {
+if (!data) return "Error inesperado";
+
+const msg = Array.isArray(data?.message) ? data.message.join("\n") : data?.message;
+return (
+msg ||
+data?.error ||
+data?.errors?.[0]?.msg ||
+data?.detail ||
+"Error inesperado"
+);
+}
+
+api.interceptors.request.use((cfg) => {
+const t = localStorage.getItem("token");
+if (t) {
+if (cfg.headers && typeof (cfg.headers as any).set === "function") {
+(cfg.headers as any).set("Authorization", `Bearer ${t}`);
+} else if (cfg.headers) {
+(cfg.headers as any)["Authorization"] = `Bearer ${t}`;
+} else {
+cfg.headers = { Authorization: `Bearer ${t}` } as any;
+}
+}
+return cfg;
+});
+
+api.interceptors.response.use(
+(r) => r,
+(err: AxiosError) => {
+const status = err?.response?.status;
+
+```
+if (status === 401 && location.pathname !== "/login") {
+  localStorage.removeItem("token");
+  location.replace("/login");
+  return Promise.reject(new Error("Sesión expirada"));
+}
+
+if (err.response) {
+  const message = extractApiMessage(err.response.data);
+  const apiError = new Error(message) as Error & { status?: number };
+  apiError.status = status;
+  return Promise.reject(apiError);
+}
+
+if (err.code === "ECONNABORTED") return Promise.reject(new Error("La solicitud tardó demasiado."));
+if (err.message === "Network Error") return Promise.reject(new Error("No hay conexión con el servidor."));
+
+return Promise.reject(new Error(err.message || "Error inesperado"));
+```
+
+}
+);
+
+// ----------------------
+// WebSocket centralizado
+// ----------------------
+let socket: Socket | null = null;
+
+/**
+
+* Conecta al WebSocket con namespace opcional.
+* Ejemplo:
+* const s = connectSocket("/lotes");
+  */
+  function connectSocket(namespace = "/", token?: string): Socket {
+  if (!socket || socket.disconnected) {
+  const baseUrl = import.meta.env.VITE_API_URL?.replace("/api/v1", "") ?? "[http://localhost:4000](http://localhost:4000)";
+
+```
+socket = io(`${baseUrl}${namespace}`, {
+```
+
+```
+  auth: { token: token || localStorage.getItem("token") },
+  transports: ["websocket"],
+  reconnectionAttempts: 10,
+  reconnectionDelay: 3000,
+  timeout: 8000,
+});
+
+socket.on("connect", () => console.log(" Conectado a WS:", namespace));
+socket.on("disconnect", () => console.warn(" Desconectado del WS:", namespace));
+socket.on("connect_error", (err) => console.error(" Error WS:", err.message));
+```
+
+}
+
+return socket;
+}
+
+// ----------------------
+// Exports
+// ----------------------
+export default api;
+export { api, connectSocket };
+
+servicio de front de usuario
+import { api, connectSocket } from "@/shared/api/client";
+import type { Socket } from "socket.io-client";
+
+export type EstadoUsuario = "activo" | "inactivo" | "eliminado";
+export type RolLite = { id: number; nombre: string };
+export type UsuarioLite = {
+id: number;
+cedula: string;
+nombre: string;
+apellido: string;
+telefono: string;
+correo: string;
+idFicha: string;
+avatar?: string;
+rol: RolLite;
+estado: EstadoUsuario;
+};
+
+/* =========================
+
+* Helpers de mapeo
+* ========================= */
+  function adaptUsuarioLite(x: any): UsuarioLite {
+  const eliminado = x?.delete_at != null || x?.deleted_at != null;
+  return {
+  id: x?.id_usuario_pk ?? x?.id ?? 0,
+  cedula: x?.cedula_usuario ?? x?.cedula ?? "",
+  nombre: x?.nombre_usuario ?? x?.nombre ?? "",
+  apellido: x?.apellido_usuario ?? x?.apellido ?? "",
+  telefono: x?.telefono_usuario ?? x?.telefono ?? "",
+  correo: x?.correo_usuario ?? x?.correo ?? x?.email ?? "",
+  idFicha: x?.id_ficha ?? x?.idFicha ?? "",
+  avatar: x?.img_usuario ?? x?.avatar ?? undefined,
+  rol: {
+  id: x?.rol?.id_rol_pk ?? x?.rol?.id ?? x?.id_rol_fk ?? 0,
+  nombre: x?.rol?.nombre_rol ?? x?.rol?.nombre ?? "",
+  },
+  estado: eliminado ? "eliminado" : ((x?.estado_usuario ?? x?.estado ?? "activo") as EstadoUsuario),
+  };
+  }
+
+function mapDtoToApi(
+dto: Partial<UsuarioLite> & { idRol?: number; contrasena?: string }
+) {
+const out: any = {};
+if (dto.cedula !== undefined) out.cedula_usuario = dto.cedula;
+if (dto.nombre !== undefined) out.nombre_usuario = dto.nombre;
+if (dto.apellido !== undefined) out.apellido_usuario = dto.apellido;
+if (dto.telefono !== undefined) out.telefono_usuario = dto.telefono;
+if (dto.correo !== undefined) out.correo_usuario = dto.correo;
+if (dto.idFicha !== undefined) out.id_ficha = dto.idFicha;
+if (dto.avatar !== undefined) out.img_usuario = dto.avatar;
+if (dto.idRol !== undefined) out.id_rol_fk = dto.idRol;
+if (dto.estado !== undefined) out.estado_usuario = dto.estado;
+if ((dto as any).contrasena !== undefined) out.contrasena_usuario = (dto as any).contrasena;
+return out;
+}
+
+function normalizeListResp(data: any): UsuarioLite[] {
+const raw: any[] =
+(Array.isArray(data) && data) || data?.items || data?.data || data?.usuarios || [];
+return raw.map(adaptUsuarioLite);
+}
+
+/* =========================
+
+* Service
+* ========================= */
+  class UsuarioService {
+  private socket: Socket | null = null;
+
+/* ===== REST ===== */
+async list(params?: {
+page?: number; limit?: number; q?: string;
+estado?: "activo" | "inactivo" | "eliminado" | "todos";
+rolId?: number;
+}): Promise<UsuarioLite[]> {
+const query: Record<string, any> = {};
+if (params?.page) query.page = params.page;
+if (params?.limit) query.limit = params.limit;
+if (params?.q) { query.q = params.q; query.search = params.q; }
+if (params?.estado && params.estado !== "todos") query.estado_usuario = params.estado;
+if (params?.rolId) query.id_rol_fk = params.rolId;
+
+```
+const { data } = await api.get("/usuarios", { params: query });
+return normalizeListResp(data);
+```
+
+}
+
+async listDeleted(): Promise<UsuarioLite[]> {
+try {
+const { data } = await api.get("/usuarios/deleted");
+return normalizeListResp(data);
+} catch {
+return this.list({ estado: "eliminado" });
+}
+}
+
+async get(id: number): Promise<UsuarioLite> {
+const { data } = await api.get(`/usuarios/${id}`);
+return adaptUsuarioLite(data);
+}
+
+async create(payload: {
+cedula: string; nombre: string; apellido: string; telefono: string;
+correo: string; idFicha: string; avatar?: string; idRol: number; contrasena?: string;
+}): Promise<{ message: string; id: number }> {
+const body = mapDtoToApi(payload);
+const { data } = await api.post("/usuarios", body);
+return { message: data?.message ?? "Usuario creado", id: data?.id ?? data?.id_usuario_pk ?? 0 };
+}
+
+async update(
+id: number,
+payload: Partial<Omit<Parameters<UsuarioService["create"]>[0], "contrasena">>
+): Promise<{ message: string }> {
+const body = mapDtoToApi(payload as any);
+const { data } = await api.patch(`/usuarios/${id}`, body);
+return { message: data?.message ?? "Usuario actualizado" };
+}
+
+async updateEstado(id: number, estado: "activo" | "inactivo") {
+const { data } = await api.patch(`/usuarios/${id}`, { estado_usuario: estado });
+return { message: data?.message ?? "Estado actualizado", estado: (data?.estado ?? estado) as EstadoUsuario };
+}
+
+async remove(id: number): Promise<boolean> {
+await api.delete(`/usuarios/${id}`);
+return true;
+}
+
+async restore(id: number): Promise<boolean> {
+await api.patch(`/usuarios/restore/${id}`, {});
+return true;
+}
+
+async listRolesLite(): Promise<RolLite[]> {
+const { data } = await api.get("/roles");
+const raw: any[] = (Array.isArray(data) && data) || data?.items || data?.data || [];
+return raw.map((r) => ({
+id: r?.id_rol_pk ?? r?.id ?? 0,
+nombre: r?.nombre_rol ?? r?.nombre ?? "",
+}));
+}
+
+async resetPassword(id: number, nuevaContrasena: string) {
+const { data } = await api.patch(`/usuarios/${id}/password`, { nuevaContrasena });
+return data as { message: string };
+}
+
+/* ===== WebSocket (solo escuchar) ===== */
+private namespace(): string {
+return (import.meta.env.VITE_USERS_WS_NS as string) || "/api/v1/usuarios";
+}
+
+connect(): Socket {
+this.socket = connectSocket(this.namespace());
+return this.socket;
+}
+
+on(event: string, callback: (...args: any[]) => void): void {
+this.connect().on(event, callback);
+}
+
+off(event: string, callback?: (...args: any[]) => void): void {
+const s = this.connect();
+if (callback) s.off(event, callback);
+else s.removeAllListeners(event);
+}
+
+disconnect(): void {
+if (this.socket) {
+try { this.socket.removeAllListeners(); this.socket.disconnect(); } catch {}
+this.socket = null;
+}
+}
+
+/* ===== Atajos de eventos comunes ===== */
+onCreated(cb: (u: any) => void)    { this.on("usuarioCreated", cb); }
+onUpdated(cb: (u: any) => void)    { this.on("usuarioUpdated", cb); }
+onDeleted(cb: (u: any) => void)    { this.on("usuarioDeleted", cb); }
+offCreated(cb?: (u: any) => void)  { this.off("usuarioCreated", cb); }
+offUpdated(cb?: (u: any) => void)  { this.off("usuarioUpdated", cb); }
+offDeleted(cb?: (u: any) => void)  { this.off("usuarioDeleted", cb); }
+}
+
+export const usuarioService = new UsuarioService();
+
+/* ========= Wrappers que usa el hook ========= */
+export const listUsuarios = (params?: {
+page?: number; limit?: number; q?: string;
+estado?: "activo" | "inactivo" | "eliminado" | "todos";
+rolId?: number;
+}) => usuarioService.list(params);
+
+export const listRolesLite = () => usuarioService.listRolesLite();
+
+export const softDeleteUsuario = (id: number) => usuarioService.remove(id);
+
+export const updateEstado = (id: number, to: "activo" | "inactivo") =>
+usuarioService.updateEstado(id, to);
+
+export const updateUsuario = (
+id: number,
+dto: Partial<UsuarioLite> & { idRol?: number }
+) => usuarioService.update(id, dto);
+
+export const restoreUsuario = (id: number) => usuarioService.restore(id);
+
+hooks de usuario
+// src/modules/usuarios/usuarios/hooks/useUsuarios.ts
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { UsuarioLite } from "../model/types";
+import {
+listUsuarios as svcListUsuarios,
+listRolesLite as svcListRolesLite,
+updateUsuario as svcUpdateUsuario,
+updateEstado as svcUpdateEstado,
+softDeleteUsuario as svcSoftDeleteUsuario,
+restoreUsuario as svcRestoreUsuario,
+} from "../api/usuarioService";
+
+/* =========================
+
+* Tipos
+* ========================= */
+  export type TabKey = "gestionar" | "restaurar";
+
+type UsuariosListResp = {
+items: UsuarioLite[];
+page: number;
+limit: number;
+total: number;
+hasMore: boolean;
+nextOffset: number;
+};
+
+const qk = {
+usuariosList: (tab: TabKey, q: string, page: number, limit: number) =>
+["usuarios", "list", { tab, q, page, limit }] as const,
+rolesLite: () => ["roles", "lite"] as const,
+};
+
+/* =========================
+
+* Listado
+* ========================= */
+  export function useUsuariosList({
+  page,
+  q,
+  tab,
+  limit = 10,
+  }: {
+  page: number;
+  q: string;
+  tab: TabKey;
+  limit?: number;
+  }) {
+  const estado = tab === "restaurar" ? ("eliminado" as const) : ("todos" as const);
+
+return useQuery<UsuariosListResp>({
+queryKey: qk.usuariosList(tab, q, page, limit),
+queryFn: async () => {
+const resp: any = await svcListUsuarios({
+page,
+limit,
+q: q?.trim() || undefined,
+estado,
+});
+
+```
+  // Si el service ya devuelve objeto normalizado
+  if (resp && typeof resp === "object" && "items" in resp) {
+    const r = resp as any;
+    const items: UsuarioLite[] = Array.isArray(r.items) ? r.items : [];
+    const filtered =
+      estado === "eliminado"
+        ? items.filter((u) => u.estado === "eliminado")
+        : items.filter((u) => u.estado !== "eliminado");
+
+    return {
+      items: filtered,
+      page: r.page ?? page,
+      limit: r.limit ?? limit,
+      total: r.total ?? filtered.length,
+      hasMore:
+        r.hasMore ??
+        (r.total
+          ? r.total > (r.page ?? page) * (r.limit ?? limit)
+          : filtered.length === limit),
+      nextOffset: r.nextOffset ?? ((r.page ?? page) * (r.limit ?? limit)),
+    };
+  }
+
+  // Si vino array, envolver + paginar
+  const arr: UsuarioLite[] = Array.isArray(resp) ? resp : [];
+  const filtered =
+    estado === "eliminado"
+      ? arr.filter((u) => u.estado === "eliminado")
+      : arr.filter((u) => u.estado !== "eliminado");
+
+  const start = (page - 1) * limit;
+  const paged = filtered.slice(start, start + limit);
+
+  return {
+    items: paged,
+    page,
+    limit,
+    total: filtered.length,
+    hasMore: start + limit < filtered.length,
+    nextOffset: start + limit,
+  };
+},
+staleTime: 15_000,
+```
+
+});
+}
+
+/* =========================
+
+* Roles lite
+* ========================= */
+  export function useRolesLite() {
+  return useQuery<{ items: Array<{ id: number; nombre: string }> }>({
+  queryKey: qk.rolesLite(),
+  queryFn: async () => {
+  const data: any = await svcListRolesLite();
+  if (data && typeof data === "object" && "items" in data) return data as any;
+  return { items: Array.isArray(data) ? data : [] };
+  },
+  staleTime: 5 * 60_000,
+  });
+  }
+
+/* =========================
+
+* Mutaciones
+* ========================= */
+
+/** Editar usuario */
+export function useUsuarioUpdate() {
+const qc = useQueryClient();
+return useMutation({
+mutationFn: ({ id, dto }: { id: number; dto: Partial<UsuarioLite> & { idRol?: number } }) =>
+svcUpdateUsuario(id, dto),
+onSuccess: async () => {
+await qc.invalidateQueries({ queryKey: ["usuarios", "list"], exact: false });
+},
+});
+}
+
+/** Activar/Inactivar usuario */
+export function useUsuarioToggleEstado() {
+const qc = useQueryClient();
+return useMutation({
+mutationFn: ({ id, to }: { id: number; to: "activo" | "inactivo" }) =>
+svcUpdateEstado(id, to),
+onSuccess: async () => {
+await qc.invalidateQueries({ queryKey: ["usuarios", "list"], exact: false });
+},
+});
+}
+
+/** Eliminar (soft-delete) usuario */
+export function useUsuarioRemove() {
+const qc = useQueryClient();
+return useMutation({
+mutationFn: (id: number) => svcSoftDeleteUsuario(id),
+onSuccess: async () => {
+await qc.invalidateQueries({ queryKey: ["usuarios", "list"], exact: false });
+},
+});
+}
+
+/** Restaurar usuario — con actualización optimista */
+export function useUsuarioRestore() {
+const qc = useQueryClient();
+
+return useMutation({
+mutationFn: (id: number) => svcRestoreUsuario(id),
+
+```
+// OPTIMISTA: quitar de todas las listas cacheadas
+onMutate: async (id: number) => {
+  await qc.cancelQueries({ queryKey: ["usuarios", "list"] });
+
+  const prevEntries = qc.getQueriesData<UsuariosListResp>({
+    queryKey: ["usuarios", "list"],
+  });
+
+  prevEntries.forEach(([key, data]) => {
+    if (!data) return;
+    const filtered = data.items.filter((u) => u.id !== id);
+    qc.setQueryData<UsuariosListResp>(key, {
+      ...data,
+      items: filtered,
+      total: Math.max(0, (data.total ?? filtered.length) - 1),
+    });
+  });
+
+  return { prevEntries };
+},
+
+onError: (_err, _id, ctx) => {
+  // revertir si falló
+  ctx?.prevEntries?.forEach(([key, data]) => {
+    qc.setQueryData(key, data);
+  });
+},
+
+onSettled: async () => {
+  // y revalidar siempre
+  await qc.invalidateQueries({ queryKey: ["usuarios", "list"], exact: false });
+},
+```
+
+});
+}
+
+feature de usuario
+
+import { useMemo, useState } from "react";
+import { Pagination, Tab, Tabs } from "@heroui/react";
+import Section from "../widgets/Section";
+import UserToolbar from "../widgets/UserToolbar";
+import UserTable from "../widgets/UserTable";
+import UserDetailModal from "../widgets/UserDetailModal";
+import UserEditModal from "../widgets/UserEditModal";
+import {
+useRolesLite,
+useUsuarioRemove,
+useUsuarioRestore,
+useUsuarioToggleEstado,
+useUsuarioUpdate,
+useUsuariosList,
+} from "../hooks/useUsuarios";
+import type { UsuarioLite } from "../model/types";
+
+export default function UsuariosFeature() {
+const [tab, setTab] = useState<"gestionar" | "restaurar">("gestionar");
+const [q, setQ] = useState("");
+const [page, setPage] = useState(1);
+const rowsPerPage = 10;
+
+const { data, isLoading } = useUsuariosList({ page, q, tab });
+const items: UsuarioLite[] = useMemo(() => data?.items ?? [], [data]);
+const pages = Math.max(1, Math.ceil((data?.total ?? 0) / rowsPerPage));
+
+const { data: rolesResp } = useRolesLite();
+const roles = rolesResp?.items ?? [];
+
+const [ver, setVer] = useState<UsuarioLite | null>(null);
+const [editar, setEditar] = useState<UsuarioLite | null>(null);
+
+const toggleEstado = useUsuarioToggleEstado();
+const delUser = useUsuarioRemove();
+const restore = useUsuarioRestore();
+const updUser = useUsuarioUpdate();
+
+return ( <Section title="Gestión de usuarios">
+<Tabs
+selectedKey={tab}
+onSelectionChange={(k) => {
+setTab(k as any);
+setPage(1);
+}}
+> <Tab key="gestionar" title="Gestionar"> <div className="space-y-4">
+<UserToolbar q={q} setQ={(v) => { setQ(v); setPage(1); }} />
+{isLoading
+? <div className="py-8 text-center text-default-500">Cargando...</div>
+: <UserTable items={items} onView={setVer} />
+} <div className="flex justify-end"> <Pagination page={page} total={pages} onChange={setPage} showShadow /> </div> </div> </Tab>
+
+```
+    <Tab key="restaurar" title="Restaurar">
+      <div className="space-y-4">
+        <p className="text-default-500 text-sm">Lista de usuarios eliminados para restauración.</p>
+        {isLoading
+          ? <div className="py-8 text-center text-default-500">Cargando...</div>
+          : <UserTable items={items} onView={setVer} />
+        }
+        <div className="flex justify-end">
+          <Pagination page={page} total={pages} onChange={setPage} showShadow />
+        </div>
+      </div>
+    </Tab>
+  </Tabs>
+
+  {/* Modales */}
+  <UserDetailModal
+    user={ver}
+    isOpen={!!ver}
+    onClose={() => setVer(null)}
+    onEdit={(u) => { setEditar(u); setVer(null); }}
+    onToggleEstado={(u) =>
+      toggleEstado.mutate({ id: u.id, to: u.estado === "activo" ? "inactivo" : "activo" })
+    }
+    onDelete={(u) => delUser.mutate(u.id, { onSuccess: () => setVer(null) })}
+    onRestore={(u) => restore.mutate(u.id, { onSuccess: () => setVer(null) })}
+  />
+
+  <UserEditModal
+    user={editar}
+    roles={roles}
+    isOpen={!!editar}
+    onClose={() => setEditar(null)}
+    onSubmit={({ id, dto }) => updUser.mutate({ id, dto }, { onSuccess: () => setEditar(null) })}
+  />
+</Section>
+```
+
+);
+}
+
+getways de usuarios back
+import {
+WebSocketGateway,
+WebSocketServer,
+SubscribeMessage,
+MessageBody,
+ConnectedSocket,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { UsuariosService } from '../services/usuarios.service';
+import { CreateUsuarioDto } from '../dto/create-usuario.dto';
+import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
+import { RegistrarUsuarioPublicDTO } from '../dto/crear-usuario-public.dto';
+import { CambiarContrasenaDto } from '../dto/cambiar-contrasena.dto';
+import { RecuperarContrasenaDto } from '../dto/recuperar-contrasena.dto';
+import { VerificarCodigoDto } from '../dto/verificar-codigo.dto';
+import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
+import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
+import { PermisosGuard } from 'src/common/guard/permisos.guard';
+import * as fs from 'fs';
+import * as path from 'path';
+
+type WsOk<T = any> = { ok: true; data?: T; message?: string };
+type WsErr = { ok: false; error: string; status?: number };
+type WsRes<T = any> = WsOk<T> | WsErr;
+
+function saveBase64Image(
+base64?: string,
+folder = 'usuarios',
+fileNamePrefix = 'img',
+): string | undefined {
+if (!base64) return undefined;
+const match = base64.match(/^data:(.+);base64,(.+)$/);
+const buffer = Buffer.from(match ? match[2] : base64, 'base64');
+const uploadsDir = path.resolve(process.cwd(), 'uploads', folder);
+fs.mkdirSync(uploadsDir, { recursive: true });
+const fileName = `${fileNamePrefix}-${Date.now()}.png`;
+const filePath = path.join(uploadsDir, fileName);
+fs.writeFileSync(filePath, buffer);
+return path.relative(process.cwd(), filePath).replace(/\/g, '/');
+}
+
+@WebSocketGateway({
+namespace: '/usuarios',
+cors: { origin: '*', credentials: false },
+})
+@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+export class UsuariosGateway {
+@WebSocketServer() server: Server;
+constructor(private readonly usuariosService: UsuariosService) {}
+
+public notifyUsersListChanged() {
+this.server.emit('usuarios:lista_actualizada');
+}
+
+public notifyProfileChanged(userId: number) {
+this.server.to(`user_${userId}`).emit('usuarios:perfil_actualizado');
+}
+
+// === Público ===
+@SubscribeMessage('create_public')
+async createPublic(
+@MessageBody() payload: { dto: RegistrarUsuarioPublicDTO; imgBase64?: string },
+): Promise<WsRes> {
+try {
+const imgPath = saveBase64Image(payload?.imgBase64, 'usuarios', payload?.dto?.correo_usuario || 'img');
+const res = await this.usuariosService.createPublic(payload.dto, imgPath);
+return { ok: true, data: res, message: 'Usuario creado correctamente con rol: Invitado' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error creando usuario público', status: e?.status };
+}
+}
+
+// === Protegidos (JWT + permisos) ===
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:create')
+@SubscribeMessage('create')
+async create(
+@MessageBody() payload: { dto: CreateUsuarioDto; imgBase64?: string },
+@ConnectedSocket() _client: Socket,
+): Promise<WsRes> {
+try {
+const imgPath = saveBase64Image(payload?.imgBase64, 'usuarios', payload?.dto?.correo_usuario || 'img');
+const res = await this.usuariosService.create(payload.dto, imgPath);
+this.notifyUsersListChanged();
+return { ok: true, data: res, message: 'Usuario creado correctamente' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error creando usuario', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:read')
+@SubscribeMessage('find_all')
+async findAll(): Promise<WsRes> {
+try {
+const list = await this.usuariosService.findAll();
+return { ok: true, data: list };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error listando usuarios', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:read')
+@SubscribeMessage('find_one')
+async findOne(@MessageBody() payload: { id: number }): Promise<WsRes> {
+try {
+const user = await this.usuariosService.findOne(payload.id, [
+'permisos', 'permisos.module', 'rol', 'rol.permisos', 'rol.permisos.module',
+]);
+return { ok: true, data: user };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Usuario no encontrado', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@SubscribeMessage('update')
+async update(
+@MessageBody() payload: { id: number; dto: UpdateUsuarioDto; imgBase64?: string },
+): Promise<WsRes> {
+try {
+const imgPath = saveBase64Image(payload?.imgBase64, 'usuarios', payload?.dto?.correo_usuario || 'img');
+const updated = await this.usuariosService.update(payload.id, payload.dto, imgPath);
+this.notifyUsersListChanged();
+this.notifyProfileChanged(payload.id);
+return { ok: true, data: updated };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error actualizando usuario', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:delete')
+@SubscribeMessage('remove')
+async remove(@MessageBody() payload: { id: number }): Promise<WsRes> {
+try {
+const res = await this.usuariosService.remove(payload.id);
+this.notifyUsersListChanged();
+return { ok: true, data: res, message: `Usuario con ID ${payload.id} eliminado correctamente` };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error eliminando usuario', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@SubscribeMessage('restore')
+async restore(@MessageBody() payload: { id: number }): Promise<WsRes> {
+try {
+const res = await this.usuariosService.restore(payload.id);
+this.notifyUsersListChanged();
+return { ok: true, data: res, message: `Usuario con ID ${payload.id} restaurado correctamente` };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error restaurando usuario', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@SubscribeMessage('asignar_permisos')
+async asignarPermisos(
+@MessageBody() payload: { id: number; permisosIds: number[] },
+): Promise<WsRes> {
+try {
+const res = await this.usuariosService.asignarPermisos(payload.id, payload.permisosIds);
+this.notifyProfileChanged(payload.id);
+return { ok: true, data: res, message: 'Permisos asignados' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error asignando permisos', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@SubscribeMessage('quitar_permisos')
+async quitarPermisos(
+@MessageBody() payload: { id: number; permisosIds: number[] },
+): Promise<WsRes> {
+try {
+const res = await this.usuariosService.quitarPermisos(payload.id, payload.permisosIds);
+this.notifyProfileChanged(payload.id);
+return { ok: true, data: res, message: 'Permisos quitados' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error quitando permisos', status: e?.status };
+}
+}
+
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@SubscribeMessage('asignar_rol')
+async asignarRol(@MessageBody() payload: { id: number; rolId: number }): Promise<WsRes> {
+try {
+const res = await this.usuariosService.asignarRol(payload.id, payload.rolId);
+this.notifyProfileChanged(payload.id);
+return { ok: true, data: res, message: 'Rol asignado' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error asignando rol', status: e?.status };
+}
+}
+
+// === Flujo recuperación ===
+@SubscribeMessage('recuperar_contrasena')
+async recuperarContrasena(@MessageBody() dto: RecuperarContrasenaDto): Promise<WsRes> {
+try {
+const res = await this.usuariosService.recuperarContrasena(dto);
+return { ok: true, data: res, message: 'Código de verificación enviado' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error en recuperación', status: e?.status };
+}
+}
+
+@SubscribeMessage('verificar_codigo')
+async verificarCodigo(@MessageBody() dto: VerificarCodigoDto): Promise<WsRes> {
+try {
+const res = await this.usuariosService.verificarCodigo(dto);
+return { ok: true, data: res, message: 'Código verificado' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Código inválido', status: e?.status };
+}
+}
+
+@SubscribeMessage('cambiar_contrasena')
+async cambiarContrasena(@MessageBody() dto: CambiarContrasenaDto): Promise<WsRes> {
+try {
+const res = await this.usuariosService.cambiarContrasena(dto);
+return { ok: true, data: res, message: 'Contraseña cambiada correctamente' };
+} catch (e: any) {
+return { ok: false, error: e?.message || 'Error cambiando contraseña', status: e?.status };
+}
+}
+}
+
+service usuario back
+import {
+Injectable,
+NotFoundException,
+BadRequestException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
+
+import { Usuario } from '../entities/usuario.entity';
+import { Permiso } from 'src/modules/permisos/entities/permiso.entity';
+import { Rol } from '../../roles/entities/rol.entity';
+import { CreateUsuarioDto } from '../dto/create-usuario.dto';
+import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
+import { RegistrarUsuarioPublicDTO } from '../dto/crear-usuario-public.dto';
+import { RecuperarContrasenaDto } from '../dto/recuperar-contrasena.dto';
+import { VerificarCodigoDto } from '../dto/verificar-codigo.dto';
+import { CambiarContrasenaDto } from '../dto/cambiar-contrasena.dto';
+import { CorreoService } from 'src/common/services/correo/correo.service';
+
+@Injectable()
+export class UsuariosService {
+constructor(
+@InjectRepository(Usuario)
+private readonly usuarioRepository: Repository<Usuario>,
+
+```
+@InjectRepository(Rol)
+private readonly rolRepository: Repository<Rol>,
+
+@InjectRepository(Permiso)
+private readonly permisoRepository: Repository<Permiso>,
+
+private readonly correoService: CorreoService,
+```
+
+) {}
+
+async obtenerUsuarioConRolYPermisos(id: number) {
+return this.usuarioRepository.findOne({
+where: { id_usuario_pk: id },
+relations: ['rol', 'rol.permisos'], // Ajusta según tus entidades
+});
+}
+
+async create(dto: CreateUsuarioDto, imgPath?: string): Promise<string> {
+const rol = await this.rolRepository.findOneBy({
+id_rol_pk: dto.id_rol_fk,
+});
+if (!rol) throw new NotFoundException('El rol especificado no existe');
+
+```
+const existeCorreo = await this.usuarioRepository.findOne({
+  where: { correo_usuario: dto.correo_usuario },
+});
+if (existeCorreo) throw new BadRequestException('El correo ya existe');
+
+const existeCedula = await this.usuarioRepository.findOne({
+  where: { cedula_usuario: dto.cedula_usuario },
+});
+if (existeCedula) throw new BadRequestException('La cédula ya existe');
+
+const hashedPassword = await bcrypt.hash(dto.contrasena_usuario, 10);
+
+let finalPath = imgPath;
+if (imgPath && dto.correo_usuario) {
+  finalPath = await this.moveImageToUserFolder(imgPath, dto.correo_usuario);
+}
+
+const nuevoUsuario = this.usuarioRepository.create({
+  ...dto,
+  contrasena_usuario: hashedPassword,
+  rol,
+  img_usuario: finalPath ?? null,
+});
+
+await this.usuarioRepository.save(nuevoUsuario);
+return `Usuario creado correctamente con rol: ${rol.nombre_rol}`;
+```
+
+}
+
+async createPublic(
+dto: RegistrarUsuarioPublicDTO,
+imgPath?: string,
+): Promise<string> {
+const rolUsuario = await this.rolRepository.findOne({
+where: { nombre_rol: 'Invitado' },
+});
+if (!rolUsuario) throw new NotFoundException('El rol "Invitado" no existe');
+
+```
+const existeCorreo = await this.usuarioRepository.findOne({
+  where: { correo_usuario: dto.correo_usuario },
+});
+if (existeCorreo) throw new BadRequestException('El correo ya existe');
+
+const existeCedula = await this.usuarioRepository.findOne({
+  where: { cedula_usuario: dto.cedula_usuario },
+});
+if (existeCedula) throw new BadRequestException('La cédula ya existe');
+
+const hashedPassword = await bcrypt.hash(dto.contrasena_usuario, 10);
+
+let finalPath = imgPath;
+if (imgPath && dto.correo_usuario) {
+  finalPath = await this.moveImageToUserFolder(imgPath, dto.correo_usuario);
+}
+
+const nuevoUsuario = this.usuarioRepository.create({
+  ...dto,
+  contrasena_usuario: hashedPassword,
+  rol: rolUsuario,
+  img_usuario: finalPath ?? null,
+});
+
+await this.usuarioRepository.save(nuevoUsuario);
+return `Usuario creado correctamente con rol: ${rolUsuario.nombre_rol}`;
+```
+
+}
+
+async findAll(): Promise<Usuario[]> {
+return this.usuarioRepository.find({
+relations: [
+'rol',
+'rol.permisos',
+'rol.permisos.module',
+'permisos',
+'permisos.module',
+],
+withDeleted: true,
+});
+}
+
+async findByIdConPermisos(id: number): Promise<Usuario | null> {
+return this.usuarioRepository.findOne({
+where: { id_usuario_pk: id },
+relations: [
+'rol',
+'rol.permisos',
+'rol.permisos.module',
+'permisos',
+'permisos.module',
+],
+});
+}
+
+async findOne(id: number, relations: string[] = []): Promise<Usuario> {
+const usuario = await this.usuarioRepository.findOne({
+where: { id_usuario_pk: id },
+relations: [
+...relations,
+'rol',
+'rol.permisos',
+'rol.permisos.module',
+'permisos',
+'permisos.module',
+],
+withDeleted: true,
+});
+if (!usuario) throw new NotFoundException('Usuario no encontrado');
+return usuario;
+}
+
+async findByCorreoConPermisos(correo: string): Promise<Usuario | null> {
+return this.usuarioRepository.findOne({
+where: { correo_usuario: correo },
+relations: [
+'rol',
+'rol.permisos',
+'rol.permisos.module',
+'permisos',
+'permisos.module',
+],
+});
+}
+
+async update(
+id: number,
+dto: UpdateUsuarioDto,
+imgPath?: string,
+): Promise<Usuario> {
+const usuario = await this.findOne(id);
+
+// Extraer campos sensibles para manejarlos por separado
+const { contrasena_usuario, id_rol_fk, ...rest } = dto as any;
+
+// 1) Actualizar campos generales primero (incluye posible cambio de correo)
+Object.assign(usuario, rest);
+
+// 2) Si hay cambio de rol, cargar y asignar el nuevo rol
+if (id_rol_fk && id_rol_fk !== usuario.rol?.id_rol_pk) {
+const nuevoRol = await this.rolRepository.findOne({
+where: { id_rol_pk: id_rol_fk },
+relations: ['permisos', 'permisos.module'],
+});
+if (!nuevoRol) throw new NotFoundException('Rol no encontrado');
+usuario.rol = nuevoRol;
+}
+
+// 3) Manejo de la imagen (usar correo actualizado si vino en dto)
+if (imgPath) {
+if (usuario.img_usuario && fs.existsSync(usuario.img_usuario)) {
+fs.unlinkSync(usuario.img_usuario);
+}
+usuario.img_usuario = await this.moveImageToUserFolder(
+imgPath,
+usuario.correo_usuario,
+);
+}
+
+// 4) Encriptar la nueva contraseña si se proporcionó (siempre al final)
+if (contrasena_usuario) {
+usuario.contrasena_usuario = await bcrypt.hash(contrasena_usuario, 10);
+}
+
+// 5) Guardar cambios
+return await this.usuarioRepository.save(usuario);
+}
+
+async remove(id: number): Promise<string> {
+const usuario = await this.findOne(id);
+
+```
+if (usuario.img_usuario && fs.existsSync(usuario.img_usuario)) {
+  fs.unlinkSync(usuario.img_usuario);
+}
+
+await this.usuarioRepository.softDelete({ id_usuario_pk: id });
+return `Usuario con ID ${id} eliminado correctamente`;
+```
+
+}
+
+async restore(id: number): Promise<string> {
+const result = await this.usuarioRepository.restore({ id_usuario_pk: id });
+if (result.affected === 0)
+throw new NotFoundException('Usuario no encontrado');
+return `Usuario con ID ${id} restaurado correctamente`;
+}
+
+async asignarPermisos(
+usuarioId: number,
+permisosIds: number[],
+): Promise<Usuario> {
+const usuario = await this.findOne(usuarioId, ['permisos']);
+
+```
+const permisosExistentes = await this.permisoRepository.find({
+  where: { id_permiso_pk: In(permisosIds) },
+});
+
+if (permisosExistentes.length !== permisosIds.length) {
+  const idsEncontrados = permisosExistentes.map((p) => p.id_permiso_pk);
+  const idsNoEncontrados = permisosIds.filter(
+    (id) => !idsEncontrados.includes(id),
+  );
+  throw new NotFoundException(
+    `Permisos no encontrados: ${idsNoEncontrados.join(', ')}`,
+  );
+}
+
+const permisosNuevos = permisosExistentes.filter(
+  (permiso) =>
+    !usuario.permisos.some(
+      (p) => p.id_permiso_pk === permiso.id_permiso_pk,
+    ),
+);
+
+if (permisosNuevos.length === 0) {
+  throw new BadRequestException(
+    'El usuario ya tiene todos los permisos solicitados',
+  );
+}
+
+usuario.permisos.push(...permisosNuevos);
+return await this.usuarioRepository.save(usuario);
+```
+
+}
+
+async quitarPermisos(
+usuarioId: number,
+permisosIds: number[],
+): Promise<Usuario> {
+const usuario = await this.findOne(usuarioId, ['permisos']);
+
+```
+const permisosAntes = usuario.permisos.length;
+
+
+usuario.permisos = usuario.permisos.filter(
+  (permisoActual) => !permisosIds.includes(permisoActual.id_permiso_pk),
+);
+
+
+const permisosDespues = usuario.permisos.length;
+
+if (permisosAntes === permisosDespues) {
+  throw new BadRequestException(
+    'El usuario no tiene ninguno de los permisos especificados para quitar.',
+  );
+}
+
+return await this.usuarioRepository.save(usuario);
+```
+
+}
+async asignarRol(usuarioId: number, rolId: number): Promise<Usuario> {
+const usuario = await this.findOne(usuarioId, ['permisos']);
+const nuevoRol = await this.rolRepository.findOne({
+where: { id_rol_pk: rolId },
+relations: ['permisos', 'permisos.module'],
+});
+
+```
+if (!nuevoRol) throw new NotFoundException('Rol no encontrado');
+
+const permisosDelRol = nuevoRol.permisos.filter(
+  (permisoRol) =>
+    !usuario.permisos.some(
+      (p) => p.id_permiso_pk === permisoRol.id_permiso_pk,
+    ),
+);
+
+usuario.permisos.push(...permisosDelRol);
+usuario.rol = nuevoRol;
+
+return await this.usuarioRepository.save(usuario);
+```
+
+}
+
+async obtenerPermisosUsuario(
+usuarioId: number,
+): Promise<{ permisos: Permiso[] }> {
+const usuario = await this.findOne(usuarioId, [
+'permisos',
+'rol',
+'rol.permisos',
+]);
+
+```
+const permisosRol = usuario.rol?.permisos || [];
+const permisosDirectos = usuario.permisos || [];
+
+const todosPermisos = [...permisosRol, ...permisosDirectos];
+const permisosUnicos = todosPermisos.filter(
+  (permiso, index, self) =>
+    index ===
+    self.findIndex((p) => p.id_permiso_pk === permiso.id_permiso_pk),
+);
+
+return { permisos: permisosUnicos };
+```
+
+}
+
+async recuperarContrasena(
+dto: RecuperarContrasenaDto,
+): Promise<{ message: string }> {
+const usuario = await this.usuarioRepository.findOne({
+where: { correo_usuario: dto.email },
+});
+if (!usuario) throw new BadRequestException('Correo no encontrado');
+
+```
+const codigo = Math.floor(100000 + Math.random() * 900000).toString(); // Genera un código de 6 dígitos
+usuario.codigo_recuperacion = codigo;
+usuario.codigo_expiracion = new Date(Date.now() + 15 * 60 * 1000); // Expira en 15 minutos
+await this.usuarioRepository.save(usuario);
+
+try {
+  await this.correoService.enviarCodigoRecuperacion(
+    dto.email,
+    codigo,
+    usuario.nombre_usuario || 'Usuario',
+  );
+  return { message: `Código de verificación enviado a ${dto.email}` };
+} catch (error) {
+  throw new BadRequestException(
+    `Error al enviar el código: ${error.message}`,
+  );
+}
+```
+
+}
+
+async verificarCodigo(dto: VerificarCodigoDto): Promise<{ message: string }> {
+const usuario = await this.usuarioRepository.findOne({
+where: { correo_usuario: dto.email },
+});
+
+if (
+!usuario ||
+!usuario.codigo_recuperacion ||
+!usuario.codigo_expiracion
+) {
+throw new BadRequestException('Correo o código no válido');
+}
+
+if (usuario.codigo_recuperacion !== dto.codigo) {
+throw new BadRequestException('Código de verificación incorrecto');
+}
+
+if (new Date() > usuario.codigo_expiracion) {
+throw new BadRequestException('Código de verificación expirado');
+}
+
+// En lugar de borrar el código, marcamos como verificado
+usuario.codigo_verificado = true;
+await this.usuarioRepository.save(usuario);
+
+return { message: 'Código verificado correctamente' };
+}
+
+async cambiarContrasena(
+dto: CambiarContrasenaDto,
+): Promise<{ message: string }> {
+const usuario = await this.usuarioRepository.findOne({
+where: { correo_usuario: dto.email },
+});
+
+if (!usuario) throw new BadRequestException('Correo no encontrado');
+
+// Comprobamos si el código fue verificado
+if (!usuario.codigo_verificado) {
+throw new BadRequestException(
+'Código de verificación no válido o no verificado',
+);
+}
+
+// También validamos si sigue vigente (por seguridad)
+if (usuario.codigo_expiracion && new Date() > usuario.codigo_expiracion) {
+throw new BadRequestException('Código de verificación expirado');
+}
+
+// Encriptar y guardar la nueva contraseña
+const hashedPassword = await bcrypt.hash(dto.nuevaContrasena, 10);
+usuario.contrasena_usuario = hashedPassword;
+
+// Limpiar campos de recuperación
+usuario.codigo_recuperacion = null;
+usuario.codigo_expiracion = null;
+usuario.codigo_verificado = false;
+
+await this.usuarioRepository.save(usuario);
+
+return { message: 'Contraseña cambiada correctamente' };
+}
+
+private async moveImageToUserFolder(
+originalPath: string,
+correo: string,
+): Promise<string> {
+const userFolder = path.join('./uploads/usuarios', correo);
+const fileName = path.basename(originalPath);
+const newPath = path.join(userFolder, fileName);
+
+```
+if (!fs.existsSync(userFolder)) {
+  fs.mkdirSync(userFolder, { recursive: true });
+}
+
+if (fs.existsSync(originalPath)) {
+  fs.renameSync(originalPath, newPath);
+  return newPath;
+}
+
+return originalPath;
+```
+
+}
+}
+
+controlador usuario bakc
+import {
+Controller,
+Get,
+Post,
+Body,
+Patch,
+Param,
+Delete,
+UseGuards,
+ParseIntPipe,
+UseInterceptors,
+UploadedFile,
+} from '@nestjs/common';
+import { UsuariosService } from '../services/usuarios.service';
+import { CreateUsuarioDto } from '../dto/create-usuario.dto';
+import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
+import { RegistrarUsuarioPublicDTO } from '../dto/crear-usuario-public.dto';
+import { CambiarContrasenaDto } from '../dto/cambiar-contrasena.dto';
+import { RecuperarContrasenaDto } from '../dto/recuperar-contrasena.dto';
+import { VerificarCodigoDto } from '../dto/verificar-codigo.dto';
+import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
+import { PermisosGuard } from 'src/common/guard/permisos.guard';
+import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
+import { CustomFileInterceptor } from 'src/common/services/uploads/custom-file.interceptor';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { UsuariosGateway } from '../gateways/usuarios.gateway';
+
+@ApiTags('Usuarios')
+@ApiBearerAuth('access-token')
+@Controller('usuarios')
+export class UsuariosController {
+constructor(
+private readonly usuariosService: UsuariosService,
+private readonly usuariosGateway: UsuariosGateway,
+) {}
+
+@Post('public')
+@UseInterceptors(CustomFileInterceptor.create('img_usuario', 'usuarios'))
+@ApiConsumes('multipart/form-data')
+@ApiOperation({
+summary: 'Registrar un usuario público',
+description: 'Permite registrar un usuario sin autenticación previa con rol "Invitado". Incluye carga de imagen.',
+})
+@ApiResponse({ status: 201, description: 'Usuario registrado exitosamente', schema: { example: { message: 'Usuario creado correctamente con rol: Invitado' } } })
+@ApiResponse({ status: 400, description: 'Correo o cédula ya existen' })
+@ApiResponse({ status: 404, description: 'Rol "Invitado" no encontrado' })
+@ApiBody({
+schema: {
+type: 'object',
+properties: {
+cedula_usuario: { type: 'string', example: '1234567890' },
+nombre_usuario: { type: 'string', example: 'María' },
+apellido_usuario: { type: 'string', example: 'Rojas' },
+telefono_usuario: { type: 'string', example: '3205874152' },
+correo_usuario: { type: 'string', example: '[usuario@gmail.com](mailto:usuario@gmail.com)' },
+contrasena_usuario: { type: 'string', example: 'clave123' },
+img_usuario: { type: 'string', format: 'binary' },
+},
+},
+})
+createPublic(
+@Body() dto: RegistrarUsuarioPublicDTO,
+@UploadedFile() file?: Express.Multer.File,
+) {
+const imgPath = file ? file.path : undefined;
+return this.usuariosService.createPublic(dto, imgPath);
+}
+
+@Post()
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:create')
+@UseInterceptors(CustomFileInterceptor.create('img_usuario', 'usuarios'))
+@ApiOperation({
+summary: 'Crear un usuario interno',
+description: 'Registra un usuario interno con autenticación y permisos. Requiere el permiso "usuario:usuarios:create". Incluye carga de imagen.',
+})
+@ApiResponse({ status: 201, description: 'Usuario creado exitosamente', schema: { example: { message: 'Usuario creado correctamente con rol: [nombre_rol]' } } })
+@ApiResponse({ status: 400, description: 'Correo o cédula ya existen' })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Rol no encontrado' })
+async create(@Body() dto: CreateUsuarioDto, @UploadedFile() file?: Express.Multer.File) {
+const imgPath = file ? file.path : undefined;
+const result = await this.usuariosService.create(dto, imgPath);
+this.usuariosGateway.notifyUsersListChanged();
+return result;
+}
+
+@Get()
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:read')
+@ApiOperation({
+summary: 'Obtener todos los usuarios',
+description: 'Devuelve la lista completa de usuarios con sus relaciones. Requiere el permiso "usuario:usuarios:read".',
+})
+@ApiResponse({ status: 200, description: 'Lista de usuarios obtenida exitosamente', schema: { example: [ /* ... */ ] } })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+findAll() {
+return this.usuariosService.findAll();
+}
+
+@Get(':id')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:read')
+@ApiOperation({
+summary: 'Obtener un usuario por ID',
+description: 'Devuelve los detalles de un usuario específico según su ID. Requiere el permiso "usuario:usuarios:read".',
+})
+@ApiResponse({ status: 200, description: 'Usuario encontrado', schema: { example: { /* ... */ } } })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+findOne(@Param('id', ParseIntPipe) id: number) {
+return this.usuariosService.findOne(id, ['permisos', 'permisos.module', 'rol', 'rol.permisos', 'rol.permisos.module']);
+}
+
+@Patch(':id')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@UseInterceptors(CustomFileInterceptor.create('img_usuario', 'usuarios'))
+@ApiOperation({
+summary: 'Actualizar un usuario',
+description: 'Modifica los detalles de un usuario existente. Requiere el permiso "usuario:usuarios:update". Incluye carga de imagen.',
+})
+@ApiResponse({ status: 200, description: 'Usuario actualizado exitosamente', schema: { example: { /* ... */ } } })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Usuario o rol no encontrado' })
+@ApiBody({ type: UpdateUsuarioDto, /* ... */ })
+async update(
+@Param('id', ParseIntPipe) id: number,
+@Body() dto: UpdateUsuarioDto,
+@UploadedFile() file?: Express.Multer.File,
+) {
+const imgPath = file ? file.path : undefined;
+const result = await this.usuariosService.update(id, dto, imgPath);
+this.usuariosGateway.notifyUsersListChanged();
+this.usuariosGateway.notifyProfileChanged(id);
+return result;
+}
+
+@Delete(':id')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:delete')
+@ApiOperation({
+summary: 'Eliminar un usuario',
+description: 'Elimina un usuario del sistema (soft delete). Requiere el permiso "usuario:usuarios:delete".',
+})
+@ApiResponse({ status: 200, description: 'Usuario eliminado exitosamente', schema: { example: { message: 'Usuario con ID 1 eliminado correctamente' } } })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+async remove(@Param('id', ParseIntPipe) id: number) {
+const result = await this.usuariosService.remove(id);
+this.usuariosGateway.notifyUsersListChanged();
+return result;
+}
+
+@Patch('restore/:id')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@ApiOperation({
+summary: 'Restaurar un usuario eliminado',
+description: 'Restaura un usuario previamente eliminado. Requiere el permiso "usuario:usuarios:update".',
+})
+@ApiResponse({ status: 200, description: 'Usuario restaurado exitosamente', schema: { example: { message: 'Usuario con ID 1 restaurado correctamente' } } })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+async restore(@Param('id', ParseIntPipe) id: number) {
+const result = await this.usuariosService.restore(id);
+this.usuariosGateway.notifyUsersListChanged();
+return result;
+}
+
+@Patch(':id/permisos/asignar')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@ApiOperation({
+summary: 'Asignar permisos a un usuario',
+description: 'Asigna permisos directos a un usuario específico. Requiere el permiso "usuario:usuarios:update".',
+})
+@ApiResponse({ status: 200, description: 'Permisos asignados exitosamente', schema: { example: { /* ... */ } } })
+@ApiResponse({ status: 400, description: 'Permisos ya asignados o inválidos' })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Usuario o permisos no encontrados' })
+@ApiBody({ schema: { type: 'object', properties: { permisosIds: { type: 'array', items: { type: 'number' }, example: [1, 2, 3] } } } })
+async asignarPermisos(
+@Param('id', ParseIntPipe) id: number,
+@Body('permisosIds') permisosIds: number[],
+) {
+const result = await this.usuariosService.asignarPermisos(id, permisosIds);
+this.usuariosGateway.notifyProfileChanged(id);
+return result;
+}
+
+@Patch(':id/permisos/quitar')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@ApiOperation({
+summary: 'Quitar permisos a un usuario',
+description: 'Quita permisos directos a un usuario específico. Requiere el permiso "usuario:usuarios:update".',
+})
+@ApiResponse({ status: 200, description: 'Permisos quitados exitosamente', schema: { example: { /* ... */ } } })
+@ApiResponse({ status: 400, description: 'Permisos no encontrados en el usuario' })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+@ApiBody({ schema: { type: 'object', properties: { permisosIds: { type: 'array', items: { type: 'number' }, example: [1, 2] } } } })
+async quitarPermisos(
+@Param('id', ParseIntPipe) id: number,
+@Body('permisosIds') permisosIds: number[],
+) {
+const result = await this.usuariosService.quitarPermisos(id, permisosIds);
+this.usuariosGateway.notifyProfileChanged(id);
+return result;
+}
+
+@Patch(':id/rol')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('usuario:usuarios:update')
+@ApiOperation({
+summary: 'Asignar rol a un usuario',
+description: 'Asigna un rol a un usuario específico. Requiere el permiso "usuario:usuarios:update".',
+})
+@ApiResponse({ status: 200, description: 'Rol asignado exitosamente', schema: { example: { /* ... */ } } })
+@ApiResponse({ status: 401, description: 'No autenticado' })
+@ApiResponse({ status: 403, description: 'No autorizado (permiso insuficiente)' })
+@ApiResponse({ status: 404, description: 'Usuario o rol no encontrado' })
+@ApiBody({ schema: { type: 'object', properties: { rolId: { type: 'number', example: 2 } } } })
+async asignarRol(
+@Param('id', ParseIntPipe) id: number,
+@Body('rolId', ParseIntPipe) rolId: number,
+) {
+const result = await this.usuariosService.asignarRol(id, rolId);
+this.usuariosGateway.notifyProfileChanged(id);
+return result;
+}
+
+@Post('recuperar-contrasena')
+@ApiOperation({
+summary: 'Solicitar recuperación de contraseña',
+description: 'Envía un código de verificación al correo del usuario para recuperar la contraseña.',
+})
+@ApiResponse({ status: 200, description: 'Solicitud de recuperación enviada exitosamente', /* ... */ })
+@ApiResponse({ status: 400, description: 'Correo inválido o no encontrado' })
+@ApiBody({ type: RecuperarContrasenaDto, /* ... */ })
+recuperarContrasena(@Body() dto: RecuperarContrasenaDto) {
+return this.usuariosService.recuperarContrasena(dto);
+}
+
+@Post('verificar-codigo')
+@ApiOperation({
+summary: 'Verificar código de recuperación',
+description: 'Verifica el código de verificación enviado al correo del usuario.',
+})
+@ApiResponse({ status: 200, description: 'Código verificado exitosamente', /* ... */ })
+@ApiResponse({ status: 400, description: 'Código o correo inválido' })
+@ApiBody({ type: VerificarCodigoDto, /* ... */ })
+verificarCodigo(@Body() dto: VerificarCodigoDto) {
+return this.usuariosService.verificarCodigo(dto);
+}
+
+@Post('cambiar-contrasena')
+@ApiOperation({
+summary: 'Cambiar contraseña',
+description: 'Permite al usuario cambiar su contraseña tras verificar el código.',
+})
+@ApiResponse({ status: 200, description: 'Contraseña cambiada exitosamente', /* ... */ })
+@ApiResponse({ status: 400, description: 'Datos inválidos o código no verificado' })
+@ApiBody({ type: CambiarContrasenaDto, /* ... */ })
+cambiarContrasena(@Body() dto: CambiarContrasenaDto) {
+return this.usuariosService.cambiarContrasena(dto);
+}
+}

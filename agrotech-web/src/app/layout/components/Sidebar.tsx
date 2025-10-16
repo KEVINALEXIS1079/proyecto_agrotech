@@ -18,34 +18,58 @@ import {
 /** Props opcionales */
 export type SidebarProps = {
   className?: string;
-  onLogout?: () => void; // para enganchar tu lógica de cierre de sesión
-  /** Si true, se comporta como acordeón (solo 1 abierto a la vez). */
-  accordion?: boolean;
+  onLogout?: () => void;
+  accordion?: boolean; // si true, solo un submenú abierto a la vez
 };
 
-export default function Sidebar({ className = "", onLogout, accordion = true }: SidebarProps) {
+export default function Sidebar({
+  className = "",
+  onLogout,
+  accordion = true,
+}: SidebarProps) {
   const location = useLocation();
 
-  // Estado de secciones abiertas (submenús)
+  /** Estados de submenús */
   const [openCultivos, setOpenCultivos] = useState(false);
+  const [openLotes, setOpenLotes] = useState(false);
+  const [openSublotes, setOpenSublotes] = useState(false);
   const [openIot, setOpenIot] = useState(location.pathname.startsWith("/iot"));
-  const [openActividad, setOpenActividad] = useState(location.pathname.startsWith("/actividades"));
-  const [openUsuario, setOpenUsuario] = useState(location.pathname.startsWith("/usuarios"));
-  const [openFito, setOpenFito] = useState(location.pathname.startsWith("/fitos"));
-  const [openFinanzas, setOpenFinanzas] = useState(location.pathname.startsWith("/finanzas"));
-  const [openInventario, setOpenInventario] = useState(location.pathname.startsWith("/inventario"));
-  const [openReportes, setOpenReportes] = useState(location.pathname.startsWith("/reportes"));
-  const [openPermisos, setOpenPermisos] = useState(location.pathname.startsWith("/permisos"));
+  const [openActividad, setOpenActividad] = useState(
+    location.pathname.startsWith("/actividades")
+  );
+  const [openUsuario, setOpenUsuario] = useState(
+    location.pathname.startsWith("/usuarios")
+  );
+  const [openFito, setOpenFito] = useState(
+    location.pathname.startsWith("/fitos")
+  );
+  const [openFinanzas, setOpenFinanzas] = useState(
+    location.pathname.startsWith("/finanzas")
+  );
+  const [openInventario, setOpenInventario] = useState(
+    location.pathname.startsWith("/inventario")
+  );
+  const [openReportes, setOpenReportes] = useState(
+    location.pathname.startsWith("/reportes")
+  );
+  const [openPermisos, setOpenPermisos] = useState(
+    location.pathname.startsWith("/permisos")
+  );
 
-  // Abrir "Cultivos" si la ruta actual pertenece a ese contexto
+  /** Abrir "Cultivos" si la ruta actual pertenece a ese contexto */
   useEffect(() => {
-    const isCultivos = location.pathname === "/cultivos" || location.pathname.startsWith("/cultivos/");
+    const isCultivos =
+      location.pathname.startsWith("/cultivos") ||
+      location.pathname.startsWith("/lotes") ||
+      location.pathname.startsWith("/sublotes");
     if (isCultivos) setOpenCultivos(true);
   }, [location.pathname]);
 
-  // Cerrar todos los submenús (para cuando el sidebar se colapsa)
+  /** Cerrar todos los submenús */
   const closeAll = () => {
     setOpenCultivos(false);
+    setOpenLotes(false);
+    setOpenSublotes(false);
     setOpenIot(false);
     setOpenActividad(false);
     setOpenUsuario(false);
@@ -56,10 +80,12 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
     setOpenPermisos(false);
   };
 
-  // Cierra los demás cuando accordion=true
+  /** Cierra los demás cuando accordion=true */
   const closeOthers = (except: string) => {
     if (!accordion) return;
     setOpenCultivos(except === "cultivos" ? (v) => v : false);
+    setOpenLotes(except === "Lotes" ? (v) => v : false);
+    setOpenSublotes(except === "Sublotes" ? (v) => v : false);
     setOpenIot(except === "iot" ? (v) => v : false);
     setOpenActividad(except === "actividad" ? (v) => v : false);
     setOpenUsuario(except === "usuario" ? (v) => v : false);
@@ -70,36 +96,17 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
     setOpenPermisos(except === "permisos" ? (v) => v : false);
   };
 
-  // (Opcional) mapa de abiertos, por si lo usas en otra parte
-  const openMap = useMemo(
-    () => ({
-      actividades: openActividad,
-      cultivos: openCultivos,
-      fitos: openFito,
-      iot: openIot,
-      finanzas: openFinanzas,
-      inventario: openInventario,
-      reportes: openReportes,
-      permisos: openPermisos,
-      usuarios: openUsuario,
-    }),
-    [openActividad, openCultivos, openFito, openIot, openFinanzas, openInventario, openReportes, openPermisos, openUsuario]
-  );
-
   return (
     <aside
       onMouseLeave={closeAll}
-      className={
-        `
-        peer group/sidebar fixed top-16 left-0 bottom-0 z-30
-        bg-white transition-all duration-300 ease-in-out
-        w-16 hover:w-64 flex flex-col shadow-sm pb-3
-        ` + className
-      }
+      className={`peer group/sidebar fixed top-16 left-0 bottom-0 z-30
+      bg-white transition-all duration-300 ease-in-out
+      w-16 hover:w-64 flex flex-col shadow-sm pb-3 ${className}`}
     >
       <nav className="mt-4 px-2 py-2 flex flex-col gap-1 flex-1 overflow-y-auto">
         <HoverItem to="/home" icon={<HomeIcon className="h-5 w-5" />} label="Inicio" />
 
+        {/* ACTIVIDADES */}
         <SidebarItemWithChildren
           to="/actividades"
           icon={<ListChecks className="h-5 w-5" />}
@@ -112,6 +119,7 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           childrenLinks={[{ to: "/actividades/crear", label: "Registrar actividad" }]}
         />
 
+       {/* CULTIVOS */}
         <SidebarItemWithChildren
           to="/cultivos"
           icon={<Sprout className="h-5 w-5" />}
@@ -129,6 +137,35 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           ]}
         />
 
+        {/* SUBMENÚS DENTRO DE CULTIVOS */}
+        {openCultivos && (
+          <div className="pl-10 space-y-1">
+            <SidebarItemWithChildren
+              to="/lotes/listar"
+              icon={<Boxes className="h-5 w-5" />}
+              label="Lotes"
+              isOpen={openLotes}
+              onToggle={() => setOpenLotes((v) => !v)}
+              childrenLinks={[
+                { to: "/lotes/listar", label: "Historial de lotes" },
+                { to: "/lotes/crear", label: "Registrar lote" },
+              ]}
+            />
+            <SidebarItemWithChildren
+              to="/sublotes/crear"
+              icon={<Boxes className="h-5 w-5" />}
+              label="Sublotes"
+              isOpen={openSublotes}
+              onToggle={() => setOpenSublotes((v) => !v)}
+              childrenLinks={[
+                { to: "/sublotes/listar", label: "Historial de sublotes" },
+                { to: "/sublotes/crear", label: "Registrar sublote" },
+              ]}
+            />
+          </div>
+        )}
+
+        {/* FITOSANITARIO */}
         <SidebarItemWithChildren
           to="/fitos"
           icon={<Bug className="h-5 w-5" />}
@@ -145,6 +182,7 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           ]}
         />
 
+        {/* IOT */}
         <SidebarItemWithChildren
           to="/iot"
           icon={<Cpu className="h-5 w-5" />}
@@ -156,11 +194,11 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           }}
           childrenLinks={[
             { to: "/iot-registrar", label: "Registrar Sensor" },
-            { to: "/tipo-sensor", label: "Lista Tipo Sensor" },
-            { to: "/tipo-sensor/crear", label: "Registrar Tipo Sensor" },
+            { to: "/tipo-sensor", label: "Tipo Sensor" },
           ]}
         />
 
+        {/* FINANZAS */}
         <SidebarItemWithChildren
           to="/finanzas"
           icon={<Wallet className="h-5 w-5" />}
@@ -177,6 +215,7 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           ]}
         />
 
+        {/* INVENTARIO */}
         <SidebarItemWithChildren
           to="/inventario"
           icon={<Boxes className="h-5 w-5" />}
@@ -193,6 +232,7 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           ]}
         />
 
+        {/* REPORTES */}
         <SidebarItemWithChildren
           to="/reportes"
           icon={<FileBarChart className="h-5 w-5" />}
@@ -209,6 +249,7 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           ]}
         />
 
+        {/* PERMISOS */}
         <SidebarItemWithChildren
           to="/permisos"
           icon={<ToggleRight className="h-5 w-5" />}
@@ -221,12 +262,13 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           childrenLinks={[
             { to: "/lista-permisos", label: "Lista de permisos" },
             { to: "/crear-permiso", label: "Crear permiso" },
-            { to: "/permisos-asignar-usuario", label: "asignar permisos usuarios" },
-            { to: "/permisos-asignar-rol", label: "asignar permisos rol" },
-            { to: "/quitar-permisos-usuario", label: "quitar permisos usuario" },
+            { to: "/permisos-asignar-usuario", label: "Asignar permisos usuarios" },
+            { to: "/permisos-asignar-rol", label: "Asignar permisos rol" },
+            { to: "/quitar-permisos-usuario", label: "Quitar permisos usuario" },
           ]}
         />
 
+        {/* USUARIOS */}
         <SidebarItemWithChildren
           to="/usuarios"
           icon={<Users className="h-5 w-5" />}
@@ -239,38 +281,18 @@ export default function Sidebar({ className = "", onLogout, accordion = true }: 
           childrenLinks={[
             { to: "/lista-usuarios", label: "Lista de usuarios" },
             { to: "/usuario-registrar", label: "Registrar usuario" },
-            { to: "/perfil", label: "perfil" },
+            { to: "/perfil", label: "Perfil" },
           ]}
         />
       </nav>
 
-      {/* Botón Cerrar sesión fijo al fondo */}
-      <div className="border-t border-default-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 py-2">
-        <button
-          onClick={onLogout}
-          className="flex items-center h-10 px-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
-          aria-label="Cerrar sesión"
-          title="Cerrar sesión"
-        >
-          <span className="grid place-items-center h-10 w-10 shrink-0">
-            <LogOut className="h-5 w-5" />
-          </span>
-          <span
-            className="
-              ml-0 whitespace-nowrap overflow-hidden
-              w-0 opacity-0 transition-all duration-200
-              group-hover/sidebar:ml-2 group-hover/sidebar:w-40 group-hover/sidebar:opacity-100
-            "
-          >
-            Cerrar sesión
-          </span>
-        </button>
-      </div>
+      {/* CERRAR SESIÓN */}
+      
     </aside>
   );
 }
 
-/* =================== Items de navegación (internos) =================== */
+/* =================== Items internos =================== */
 
 type ItemBaseProps = {
   icon: React.ReactNode;
@@ -282,17 +304,13 @@ function HoverItem({ icon, label, to }: ItemBaseProps) {
   const base =
     "flex items-center rounded-md transition-colors h-10 px-2 hover:bg-default-100 text-foreground-600";
   const active = "bg-success/10 text-success hover:bg-success/10";
-
   return (
-    <NavLink to={to} className={({ isActive }) => `${base} ${isActive ? active : ""}`}>
+    <NavLink
+      to={to}
+      className={({ isActive }) => `${base} ${isActive ? active : ""}`}
+    >
       <span className="grid place-items-center h-10 w-10 shrink-0">{icon}</span>
-      <span
-        className="
-          ml-0 text-sm whitespace-nowrap overflow-hidden
-          w-0 opacity-0 transition-all duration-200
-          group-hover/sidebar:ml-2 group-hover/sidebar:w-40 group-hover/sidebar:opacity-100
-        "
-      >
+      <span className="ml-0 text-sm whitespace-nowrap overflow-hidden w-0 opacity-0 transition-all duration-200 group-hover/sidebar:ml-2 group-hover/sidebar:w-40 group-hover/sidebar:opacity-100">
         {label}
       </span>
     </NavLink>
@@ -312,11 +330,11 @@ function SidebarItemWithChildren({
   onToggle: () => void;
 }) {
   const location = useLocation();
-  const isParentActive = location.pathname === to || location.pathname.startsWith(to + "/");
+  const isParentActive =
+    location.pathname === to || location.pathname.startsWith(to + "/");
   const hasActiveChild = childrenLinks.some(
     (c) => location.pathname === c.to || location.pathname.startsWith(c.to + "/")
   );
-
   const base =
     "flex items-center rounded-md transition-colors h-10 px-2 hover:bg-default-100 text-foreground-600";
   const active = "bg-success/10 text-success hover:bg-success/10";
@@ -326,28 +344,24 @@ function SidebarItemWithChildren({
     <div className="relative">
       <NavLink
         to={to}
-        className={({ isActive }) => `${base} ${isActive || isParentActive ? active : ""}`}
+        className={({ isActive }) =>
+          `${base} ${isActive || isParentActive ? active : ""}`
+        }
         aria-expanded={isOpen}
         aria-controls={submenuId}
       >
         <span
           className={`grid place-items-center h-10 w-10 shrink-0 transition-colors duration-300 ${
-            isOpen || isParentActive || hasActiveChild ? "text-success/70" : "text-foreground-600"
+            isOpen || isParentActive || hasActiveChild
+              ? "text-success/70"
+              : "text-foreground-600"
           }`}
         >
           {icon}
         </span>
-
-        <span
-          className="
-            ml-0 text-sm whitespace-nowrap overflow-hidden flex items-center gap-2
-            w-0 opacity-0 transition-all duration-200
-            group-hover/sidebar:ml-2 group-hover/sidebar:w-40 group-hover/sidebar:opacity-100
-          "
-        >
+        <span className="ml-0 text-sm whitespace-nowrap overflow-hidden flex items-center gap-2 w-0 opacity-0 transition-all duration-200 group-hover/sidebar:ml-2 group-hover/sidebar:w-40 group-hover/sidebar:opacity-100">
           {label}
         </span>
-
         <button
           type="button"
           onClick={(e) => {
@@ -355,26 +369,24 @@ function SidebarItemWithChildren({
             e.stopPropagation();
             onToggle();
           }}
-          className="
-            ml-auto hidden items-center justify-center w-6 h-6 rounded
-            hover:bg-default-100
-            group-hover/sidebar:flex
-          "
+          className="ml-auto hidden items-center justify-center w-6 h-6 rounded hover:bg-default-100 group-hover/sidebar:flex"
           aria-expanded={isOpen}
           aria-label={isOpen ? "Ocultar submenú" : "Mostrar submenú"}
-          title={isOpen ? "Ocultar submenú" : "Mostrar submenú"}
         >
           <ChevronRight
-            className={`h-4 w-4 transition-transform duration-300 ease-out ${isOpen ? "rotate-90" : ""}`}
+            className={`h-4 w-4 transition-transform duration-300 ease-out ${
+              isOpen ? "rotate-90" : ""
+            }`}
           />
         </button>
       </NavLink>
 
-      {/* Submenú con animación suave */}
       <div
         id={submenuId}
         className={`pl-10 pr-2 overflow-hidden transition-all duration-300 ease-out ${
-          isOpen ? "max-h-96 opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1"
+          isOpen
+            ? "max-h-96 opacity-100 translate-y-0"
+            : "max-h-0 opacity-0 -translate-y-1"
         }`}
       >
         <ul className="mt-1 mb-2 space-y-1">
@@ -393,9 +405,11 @@ function SubItem({ to, label }: { to: string; label: string }) {
   const base =
     "flex items-center h-9 rounded-md text-sm px-2 hover:bg-default-100 text-foreground-600 transition-colors";
   const active = "bg-success/10 text-success hover:bg-success/20";
-
   return (
-    <NavLink to={to} className={({ isActive }) => `${base} ${isActive ? active : ""}`}>
+    <NavLink
+      to={to}
+      className={({ isActive }) => `${base} ${isActive ? active : ""}`}
+    >
       <span className="mr-2 h-2 w-2 rounded-full bg-success/60" />
       <span className="truncate">{label}</span>
     </NavLink>

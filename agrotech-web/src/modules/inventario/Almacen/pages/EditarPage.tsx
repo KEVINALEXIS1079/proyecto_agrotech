@@ -1,1 +1,0 @@
-export default function EditarPageInventario(){return <div className='p-6'>Inventario Editar</div>}

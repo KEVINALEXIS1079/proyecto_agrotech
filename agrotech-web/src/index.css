@@ -8,3 +8,28 @@
 
 /* (opcional) variante dark por clase .dark */
 @custom-variant dark (&:is(.dark *));
+
+
+@import "leaflet/dist/leaflet.css";
+
+
+
+.invisible-anchor { width: 0; height: 0; border: none; }
+
+
+.leaflet-tooltip.tooltip-msg {
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+
+.leaflet-tooltip.tooltip-error {
+  background: #dc2626;         
+  border-color: #b91c1c;    
+  color: #fff;
+}
+.leaflet-tooltip-top.tooltip-error:before {
+  border-top-color: #b91c1c; 
+}

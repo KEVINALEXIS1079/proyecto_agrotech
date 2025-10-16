@@ -1,9 +1,13 @@
+// src/modules/auth/hooks/useRegisterPublic.ts
 import { useMutation } from "@tanstack/react-query";
 import { createUsuarioPublic } from "../api/auth";
 
+type RegisterData = { message?: string }; // ajusta si tu API devuelve algo más
+type RegisterErr = Error;
+
 export function useRegisterPublic() {
-  return useMutation({
+  return useMutation<RegisterData, RegisterErr, FormData>({
     mutationKey: ["auth", "registerPublic"],
-    mutationFn: async (fd: FormData) => await createUsuarioPublic(fd),
+    mutationFn: (fd) => createUsuarioPublic(fd),
   });
 }

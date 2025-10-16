@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
+import { AuthService } from './services/auth.service';
+import { AuthController } from './controllers/auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './strategy/jwt.strategy';
+import { JwtStrategy } from './strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Usuario } from 'src/modules/usuario/usuarios/entities/usuario.entity';
-import { UsuariosModule } from 'src/modules/usuario/usuarios/service/usuarios.module'; // Importar módulo de usuarios
+import { UsuariosModule } from 'src/modules/usuario/usuarios/usuarios.module'; // Importar módulo de usuarios
 
 @Module({
   imports: [

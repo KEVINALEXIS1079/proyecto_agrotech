@@ -1,9 +1,10 @@
-export type TipoSensor = {
-  id_tipo_sensor_pk: number;
-  nombre_tipo_sensor: string;
-  deletedAt?: string | null;
-};
+export interface TipoSensor {
+id_tipo_sensor: number;
+nombre: string;
+delete_at?: string | null;
+}
 
-export type TipoSensorPayload = {
-  nombre_tipo_sensor: string;
+
+export type TipoSensorDTO = {
+nombre: string;
 };

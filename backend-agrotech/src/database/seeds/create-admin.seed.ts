@@ -191,6 +191,7 @@ export class CreateAdminSeed implements OnApplicationBootstrap {
       nombre_usuario: 'Admin',
       apellido_usuario: 'Principal',
       telefono_usuario: '0000000000',
+      id_ficha: '000000',
       correo_usuario: adminEmail,
       contrasena_usuario: hashedPassword,
       estado_usuario: EstadoUsuario.ACTIVO,

@@ -1,27 +1,9 @@
+import UsuariosFeature from "../features/UsuariosFeature";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Button,
-  Card,
-  CardBody,
-  Chip,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  Select,
-  SelectItem,
-} from "@heroui/react";
-import { Calendar, Clock4, HandCoins, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { Link } from "react-router-dom";
-
-export default function Usuarios() {
+export default function UsuariosPage() {
   return (
-    <div>
-      <h1>Usuarios</h1>
-      <Button color="primary" size="md">usuarios </Button>
+    <div className="mx-auto max-w-7xl p-4 md:p-6">
+      <UsuariosFeature />
     </div>
   );
 }

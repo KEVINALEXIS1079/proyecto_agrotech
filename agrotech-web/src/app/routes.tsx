@@ -12,7 +12,7 @@ import Home from "@/modules/landing/pages/HomePage";
 
 import { ListaPage, CrearPage, EditarPage } from "@/modules/actividad/pages/indePageActividad";
 
-import { Usuarios, ListarUsuario, CrearPageUsuario, EditarPageUsuario } from "@/modules/usuarios/usuarios/pages/indexPageUsuario";
+import { Usuarios, CrearPageUsuario, EditarPageUsuario } from "@/modules/usuarios/usuarios/pages/indexPageUsuario";
 
 import { Cultivo, ListaPageCultivo, CrearPageCultivo, EditarPageCultivo } from "@/modules/cultivo/cultivo/pages/indexPageCultivo";
 
@@ -20,17 +20,21 @@ import { ListaPageFito, CrearPageFito, EditarPageFito,FitoPage } from "@/modules
 
 import { FinanzasPage, ListaPageFinanzas, CrearPageFinanzas, EditarPageFinanzas } from "@/modules/finanzas/pages/indexPageFinanzas";
 
-import { InventarioPage, ListaPageInventario, CrearPageInventario, EditarPageInventario } from "@/modules/inventario/Almacen/pages/indexPageInventario";
+//import { InventarioPage, ListaPageInventario, CrearPageInventario, EditarPageInventario } from "@/modules/inventario/Almacen/pages/indexPageInventario";
 
 import { PageReportes, ListaPageReporte, CrearPageReporte, EditarPageReporte } from "@/modules/reportes/pages/indexPageReportes";
 
 import {AsignarPermisosRolPage, AsignarPermisosUsuarioPage, CrearPermisoPage, ListaPermisosPage, QuitarPermisosUsuarioPage} from "@/modules/permisos/permisos/pages/indexPagePermisos";
 
-import { ListaPage as ListaPageIot, CrearPageIot, EditarPageIot, IotPage } from "@/modules/iot/Sensor/pages/indexPageIot";
+import { CrearPageIot, /*EditarPageIot, IotPage */} from "@/modules/iot/Sensor/pages/indexPageIot";
 
-import  {CrearPageTipoIot, ListaPageTipoIot, EditarPageTipoIot}  from "@/modules/iot/TipoSensor/pages/indexPageTipoSensor";
+import  {TipoSensorPage}  from "@/modules/iot/TipoSensor/pages/indexPageTipoSensor";
 
 import  CrearPageTipoCultivo  from "@/modules/cultivo/tipoCultivo/pages/crearPage";
+
+import {CrearPageSublote, ListaPageSublote, EditarPageSublote} from "@/modules/cultivo/sublote/pages/IndexPageSublote";
+
+import {CrearPageLote, ListaPageLote, EditarPageLote} from "@/modules/cultivo/lote/pages/indexPageLote";
 
 import  PerfilPage  from "@/modules/usuarios/perfil/pages/PerfilPage";
 // Guards
@@ -40,6 +44,10 @@ import {
   RequireRecoveryEmail,
   RequireRecoveryCode,
 } from "@/app/guards";
+import CrearSublotePage from "@/modules/cultivo/sublote/pages/CrearPage";
+import CrearLotePage from "@/modules/cultivo/lote/pages/CrearPage";
+import ListaLotePage from "@/modules/cultivo/lote/pages/ListaPage";
+import EditLotePage from "@/modules/cultivo/lote/pages/EditarPage";
 
 export default function AppRoutes() {
   const isAuthenticated = () => Boolean(localStorage.getItem("token"));
@@ -124,18 +132,29 @@ export default function AppRoutes() {
 
         {/* Usuarios */}
         <Route path="/usuarios" element={<Usuarios />} />
-        <Route path="/lista-usuarios" element={<ListarUsuario />} />
         <Route path="/usuario-registrar" element={<CrearPageUsuario />} />
         <Route path="/usuarios/editar/:id" element={<EditarPageUsuario />} />
 
         {/* Perfil */}
         <Route path="/perfil" element={<PerfilPage />} />
+        
         {/* Cultivos */}
         <Route path="/cultivos" element={<Cultivo />} />
         <Route path="/registrar-cultivo" element={<CrearPageCultivo />} />
         <Route path="/editar-cultivo" element={<EditarPageCultivo />} />
         <Route path="/listar-cultivo" element={<ListaPageCultivo />} />
         <Route path="/tipo-cultivo/crear" element={<CrearPageTipoCultivo />} />
+        {/*lotes */}
+        <Route path="/lotes/crear" element={<CrearPageLote />} />
+        <Route path="/lotes/listar" element={<ListaPageLote />} />
+        <Route path="/lotes/editar/:id_lote" element={< EditarPageLote/>} />
+
+        {/* Sublotes */}
+        <Route path="/sublotes/crear" element={<CrearPageSublote />} />
+        <Route path="/sublotes/listar" element={< ListaPageSublote/>} />
+        <Route path="/sublotes/editar/:id_sublote" element={< EditarPageSublote/>} />
+
+
 
         {/* Fitosanitario */}
         <Route path="/fitos" element={<FitoPage />} />
@@ -150,10 +169,10 @@ export default function AppRoutes() {
         <Route path="/editar-finanzas" element={<EditarPageFinanzas />} />
 
         {/* Inventario */}
-        <Route path="/inventario" element={<InventarioPage />} />
-        <Route path="/lista-inventario" element={<ListaPageInventario />} />
-        <Route path="/inventario-registrar" element={<CrearPageInventario />} />
-        <Route path="/editar-inventario" element={<EditarPageInventario />} />
+        <Route path="/inventario" element={<CrearPageIot />} />
+        <Route path="/lista-inventario" element={<CrearPageIot />} />
+        <Route path="/inventario-registrar" element={<CrearPageIot />} />
+        <Route path="/editar-inventario" element={<CrearPageIot />} />
 
         {/* Reportes */}
         <Route path="/reportes" element={<PageReportes />} />
@@ -171,12 +190,11 @@ export default function AppRoutes() {
 
 
         {/* IoT */}
-       <Route path="/iot" element={<IotPage />} />
+       <Route path="/iot" element={<CrearPageIot />} />
         <Route path="/iot-registrar" element={<CrearPageIot />} />
-       <Route path="/iot/editar/:id" element={<EditarPageIot />} />
-        <Route path="/tipo-sensor/crear" element={<CrearPageTipoIot />} />
-        <Route path="/tipo-sensor" element={<ListaPageTipoIot />} />
-        <Route path="/tipo-sensor/editar/:id" element={<EditarPageTipoIot />} />
+       <Route path="/iot/editar/:id" element={<CrearPageIot />} />
+        <Route path="/tipo-sensor" element={<TipoSensorPage />} />
+
 
 
       </Route>

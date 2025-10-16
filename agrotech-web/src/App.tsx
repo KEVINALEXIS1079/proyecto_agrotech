@@ -1,2 +1,8 @@
 import AppRoutes from "./app/routes";
-export default function App() { return <AppRoutes />; }
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+export default function App() {
+  return <AppRoutes />;
+  <ToastContainer position="top-right" autoClose={3000} />;
+}

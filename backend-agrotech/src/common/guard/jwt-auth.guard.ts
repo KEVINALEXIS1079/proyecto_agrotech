@@ -1,48 +1,72 @@
-import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { Observable } from 'rxjs';
 import { Reflector } from '@nestjs/core';
 
+/**
+ * Este guard extiende Passport (estrategia 'jwt') y permite autenticación
+ * tanto en HTTP como en WebSocket, usando el token JWT.
+ */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(private reflector: Reflector) {
+  constructor(private readonly reflector: Reflector) {
     super();
   }
 
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-    if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-      console.log('🔐 JwtAuthGuard ejecutándose...');
-      const request = context.switchToHttp().getRequest();
-      const authHeader = request.headers['authorization'];
-      console.log('🔍 Cabecera Authorization:', authHeader ? authHeader : 'Ausente');
+  getRequest(context: ExecutionContext) {
+    const type = context.getType<'http' | 'ws' | 'rpc'>();
+
+    if (type === 'ws') {
+      // --- CONTEXTO WEBSOCKET ---
+      const client = context.switchToWs().getClient<any>();
+      const handshake = client?.handshake || {};
+
+      // Normalizamos headers
+      handshake.headers = handshake.headers || {};
+
+      // Token puede venir en handshake.auth.token (socket.io v4)
+      const authToken: string | undefined = handshake?.auth?.token;
+
+      if (authToken && !handshake.headers.authorization) {
+        handshake.headers.authorization = authToken.startsWith('Bearer ')
+          ? authToken
+          : `Bearer ${authToken}`;
+      }
+
+      // Passport leerá authorization del header
+      return handshake;
     }
-    return super.canActivate(context);
+
+    // --- CONTEXTO HTTP ---
+    return context.switchToHttp().getRequest();
   }
 
   handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
-    if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-      console.log('🔐 JwtAuthGuard - handleRequest');
-      console.log('Usuario autenticado:', !!user);
-      console.log('Error:', err?.message || 'No auth token');
-      console.log('Info:', info ? info.message : 'Sin información adicional');
-    }
-
     if (err || !user) {
-      let errorMessage = 'No auth token. Por favor, inicia sesión.';
+      let msg = 'No se encontró token. Por favor, inicia sesión.';
+
       if (info) {
-        if (info.name === 'TokenExpiredError') {
-          errorMessage = 'Token expirado. Por favor, inicia sesión nuevamente.';
-        } else if (info.name === 'JsonWebTokenError') {
-          errorMessage = 'Token inválido. Verifica el token proporcionado.';
-        }
+        if (info.name === 'TokenExpiredError')
+          msg = 'Token expirado. Por favor, inicia sesión nuevamente.';
+        else if (info.name === 'JsonWebTokenError')
+          msg = 'Token inválido. Verifica el token proporcionado.';
       }
-      throw new UnauthorizedException(errorMessage);
+
+      throw new UnauthorizedException(msg);
     }
 
-    const request = context.switchToHttp().getRequest();
-    request.user = user;
-    if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-      console.log('✅ Usuario adjuntado al request:', request.user);
+    // --- Adjuntar usuario al contexto para otros guards ---
+    const type = context.getType<'http' | 'ws' | 'rpc'>();
+
+    if (type === 'ws') {
+      const client = context.switchToWs().getClient<any>();
+      if (client?.handshake) client.handshake.user = user;
+    } else if (type === 'http') {
+      const req = context.switchToHttp().getRequest();
+      req.user = user;
     }
 
     return user;

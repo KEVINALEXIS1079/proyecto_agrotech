@@ -9,11 +9,11 @@ import {
   ManyToMany,
   JoinTable,
 } from 'typeorm';
-
 import { Rol } from '../../roles/entities/rol.entity';
 import { UsuarioActividad } from 'src/modules/actividad/usuario-actividad/entities/usuario-actividad.entity';
 import { EstadoUsuario } from '../enums/estado-usuario.enum';
 import { Permiso } from 'src/modules/permisos/entities/permiso.entity';
+import { Exclude, instanceToPlain } from 'class-transformer';
 
 @Entity({ name: 'usuarios' })
 export class Usuario {
@@ -36,6 +36,14 @@ export class Usuario {
   correo_usuario: string;
 
   @Column()
+  id_ficha: string;
+
+  @Column({ type: 'boolean', default: false })
+  codigo_verificado: boolean;
+
+  /** 🔒 Se oculta automáticamente al serializar */
+  @Exclude()
+  @Column()
   contrasena_usuario: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
@@ -48,30 +56,41 @@ export class Usuario {
   })
   estado_usuario: EstadoUsuario;
 
-  @ManyToOne(() => Rol, rol => rol.usuarios, { eager: true })
+  @ManyToOne(() => Rol, (rol) => rol.usuarios, { eager: true })
   @JoinColumn({ name: 'id_rol_fk' })
   rol: Rol;
 
-  // Relación con UsuarioActividad (inversa)
-  @OneToMany(() => UsuarioActividad, usuarioActividad => usuarioActividad.usuario)
+  @OneToMany(
+    () => UsuarioActividad,
+    (usuarioActividad) => usuarioActividad.usuario,
+  )
   actividades: UsuarioActividad[];
 
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
   delete_at: Date | null;
 
-  // Campos para recuperación de contraseña
   @Column({ type: 'varchar', nullable: true })
   codigo_recuperacion: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   codigo_expiracion: Date | null;
 
-  // Relación con permisos directos (además de los del rol)
   @ManyToMany(() => Permiso, { eager: true })
   @JoinTable({
     name: 'usuario_permisos',
     joinColumn: { name: 'usuario_id', referencedColumnName: 'id_usuario_pk' },
-    inverseJoinColumn: { name: 'permiso_id', referencedColumnName: 'id_permiso_pk' },
+    inverseJoinColumn: {
+      name: 'permiso_id',
+      referencedColumnName: 'id_permiso_pk',
+    },
   })
   permisos: Permiso[];
+
+  /**
+   * Esto garantiza que al devolver el usuario (por WS o REST),
+   * el campo `contrasena_usuario` nunca aparezca.
+   */
+  toJSON() {
+    return instanceToPlain(this);
+  }
 }

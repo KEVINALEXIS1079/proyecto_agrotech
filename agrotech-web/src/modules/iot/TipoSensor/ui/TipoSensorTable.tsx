@@ -1,0 +1,170 @@
+import React, { useState } from "react";
+import { toast } from "react-toastify";
+import type { SortDescriptor } from "@heroui/react";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+  Input,
+  Button,
+  Pagination,
+  Tooltip,
+} from "@heroui/react";
+
+import { useTipoSensorList } from "../hooks/useTipoSensorList";
+import { useDeleteTipoSensor } from "../hooks/useDeleteTipoSensor";
+import type { TipoSensor } from "../model/types";
+import { TableSkeleton } from "./TableSkeleton";
+
+// --- Props del Componente ---
+interface Props {
+  onAdd: () => void;
+  onEdit: (tipo: TipoSensor) => void;
+}
+
+// --- Iconos ---
+// 2. Añadimos los nuevos iconos para las acciones
+const EditIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg aria-hidden="true" fill="none" focusable="false" height="1em" role="presentation" viewBox="0 0 20 20" width="1em" {...props} >
+    <path d="M11.05 3.00002L4.20835 10.2417C3.95002 10.5167 3.70002 11.0584 3.65002 11.4334L3.34169 14.1334C3.23335 15.1084 3.93335 15.775 4.90002 15.6084L7.58335 15.15C7.95835 15.0834 8.48335 14.8084 8.74168 14.525L15.5834 7.28335C16.7667 6.03335 17.3 4.60835 15.4583 2.86668C13.625 1.14168 12.2334 1.75002 11.05 3.00002Z" stroke="currentColor" strokeWidth={1.5} strokeMiterlimit={10} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M9.90833 4.20831C10.2667 6.50831 12.1333 8.26665 14.45 8.49998" stroke="currentColor" strokeWidth={1.5} strokeMiterlimit={10} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const DeleteIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg aria-hidden="true" fill="none" focusable="false" height="1em" role="presentation" viewBox="0 0 20 20" width="1em" {...props} >
+    <path d="M17.5 4.98332C14.725 4.70832 11.9333 4.56665 9.15 4.56665C7.5 4.56665 5.85 4.64998 4.2 4.81665L2.5 4.98332" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7.08331 4.14169L7.26665 3.05002C7.39998 2.25835 7.49998 1.66669 8.90831 1.66669H11.0916C12.5 1.66669 12.6083 2.29169 12.7333 3.05835L12.9166 4.14169" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M15.7084 7.61664L15.1667 16.0083C15.075 17.3166 15 18.3333 12.675 18.3333H7.32502C5.00002 18.3333 4.92502 17.3166 4.83335 16.0083L4.29169 7.61664" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => ( /* ... (mismo código de antes) ... */ <svg aria-hidden="true" fill="none" focusable="false" height="1em" role="presentation" viewBox="0 0 24 24" width="1em" {...props}><g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}><path d="M6 12h12" /><path d="M12 18V6" /></g></svg>);
+const SearchIcon = (props: React.SVGProps<SVGSVGElement>) => ( /* ... (mismo código de antes) ... */ <svg aria-hidden="true" fill="none" focusable="false" height="1em" role="presentation" viewBox="0 0 24 24" width="1em" {...props}><path d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /><path d="M22 22L20 20" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></svg>);
+
+const columns = [ { name: "#", uid: "id_tipo_sensor", sortable: true }, { name: "NOMBRE", uid: "nombre", sortable: true }, { name: "ACCIONES", uid: "actions" }, ];
+
+export const TipoSensorTable: React.FC<Props> = ({ onAdd, onEdit }) => {
+  const { tipos, loading: isLoading } = useTipoSensorList();
+  const { remove, loading: isDeleting } = useDeleteTipoSensor();
+
+  const [filterValue, setFilterValue] = useState("");
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({ column: "id_tipo_sensor", direction: "ascending", });
+
+  // 3. NUEVO: Estados para controlar el modal de confirmación
+  const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [sensorToDelete, setSensorToDelete] = useState<TipoSensor | null>(null);
+
+  const filteredItems = React.useMemo(() => { /* ... (sin cambios) ... */ let filteredTipos = tipos || []; if (Boolean(filterValue)) { filteredTipos = filteredTipos.filter((tipo) => tipo.nombre.toLowerCase().includes(filterValue.toLowerCase())); } return filteredTipos; }, [tipos, filterValue]);
+  const pages = Math.ceil(filteredItems.length / rowsPerPage) || 1;
+  const sortedItems = React.useMemo(() => { /* ... (sin cambios) ... */ const start = (page - 1) * rowsPerPage; const end = start + rowsPerPage; const paginatedItems = filteredItems.slice(start, end); return [...paginatedItems].sort((a, b) => { const key = sortDescriptor.column as keyof TipoSensor; const first = a[key] ?? ''; const second = b[key] ?? ''; const cmp = first < second ? -1 : first > second ? 1 : 0; return sortDescriptor.direction === "descending" ? -cmp : cmp; }); }, [sortDescriptor, page, rowsPerPage, filteredItems]);
+
+  // 4. MODIFICADO: renderCell ahora muestra iconos en lugar del menú
+  const renderCell = React.useCallback((tipo: TipoSensor, columnKey: React.Key) => {
+    const cellValue = tipo[columnKey as keyof TipoSensor];
+    switch (columnKey) {
+      case "id_tipo_sensor":
+        return <span className="font-bold text-sm">{cellValue}</span>;
+      case "nombre":
+        return <span className="capitalize text-sm">{cellValue}</span>;
+      case "actions":
+        return (
+          <div className="relative flex items-center justify-end gap-3">
+            <Tooltip content="Editar">
+              <button onClick={() => onEdit(tipo)} className="text-lg text-default-400 cursor-pointer active:opacity-50">
+                <EditIcon />
+              </button>
+            </Tooltip>
+            <Tooltip color="danger" content="Eliminar">
+              <button onClick={() => handleDeleteClick(tipo)} className="text-lg text-danger cursor-pointer active:opacity-50">
+                <DeleteIcon />
+              </button>
+            </Tooltip>
+          </div>
+        );
+      default:
+        return cellValue;
+    }
+  }, [onEdit]);
+
+  // 5. NUEVO: Funciones para manejar el ciclo de vida del modal de confirmación
+  const handleDeleteClick = (sensor: TipoSensor) => {
+    setSensorToDelete(sensor);
+    setDeleteConfirmOpen(true);
+  };
+  
+  const handleCloseConfirmModal = () => {
+    setDeleteConfirmOpen(false);
+    setSensorToDelete(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!sensorToDelete) return;
+    try {
+      await remove(sensorToDelete.id_tipo_sensor);
+      toast.success(`"${sensorToDelete.nombre}" fue eliminado correctamente`);
+    } catch (error) {
+      toast.error("Error al eliminar el tipo de sensor");
+    } finally {
+      handleCloseConfirmModal();
+    }
+  };
+
+  const topContent = React.useMemo(() => { /* ... (sin cambios) ... */ return ( <div className="flex flex-col gap-4"> <div className="flex justify-between gap-3 items-center"> <Input isClearable className="w-full sm:max-w-[44%]" placeholder="Buscar por nombre..." startContent={<SearchIcon />} value={filterValue} onClear={() => setFilterValue("")} onValueChange={setFilterValue} /> <Button color="primary" endContent={<PlusIcon />} onClick={onAdd}> Añadir Nuevo </Button> </div> <div className="flex justify-between items-center"> <span className="text-default-400 text-small"> Total {tipos?.length || 0} tipos de sensores </span> <label className="flex items-center text-default-400 text-small"> Filas por página: <select className="bg-transparent outline-none text-default-400 text-small" onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1); }} > <option value="5">5</option> <option value="10">10</option> <option value="15">15</option> </select> </label> </div> </div> ); }, [filterValue, onAdd, tipos?.length]);
+  const bottomContent = React.useMemo(() => { /* ... (sin cambios) ... */ return ( <div className="py-2 px-2 flex justify-center items-center"> <Pagination isCompact showControls showShadow color="primary" page={page} total={pages} onChange={setPage} /> </div> ); }, [page, pages]);
+  
+  if (isLoading) { return <TableSkeleton />; }
+
+  return (
+    <>
+      <Table aria-label="Tabla de Tipos de Sensores" /* ... (resto de props sin cambios) ... */ isHeaderSticky bottomContent={bottomContent} bottomContentPlacement="outside" sortDescriptor={sortDescriptor} topContent={topContent} topContentPlacement="outside" onSortChange={setSortDescriptor} >
+        <TableHeader columns={columns}>{(column) => (<TableColumn key={column.uid} align={column.uid === "actions" ? "center" : "start"} allowsSorting={column.sortable}>{column.name}</TableColumn>)}</TableHeader>
+        <TableBody emptyContent={"No se encontraron tipos de sensores."} items={sortedItems}>{(item) => (<TableRow key={item.id_tipo_sensor}>{(columnKey) => (<TableCell>{renderCell(item, columnKey)}</TableCell>)}</TableRow>)}</TableBody>
+      </Table>
+      
+      {/* 6. NUEVO: Renderizado del modal de confirmación */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={handleCloseConfirmModal}
+        onConfirm={confirmDelete}
+        sensorName={sensorToDelete?.nombre || ""}
+        isDeleting={isDeleting}
+      />
+    </>
+  );
+};
+
+// --- Componente del Modal de Confirmación ---
+interface DeleteModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  sensorName: string;
+  isDeleting: boolean;
+}
+const DeleteConfirmationModal: React.FC<DeleteModalProps> = ({ isOpen, onClose, onConfirm, sensorName, isDeleting }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900">Confirmar Eliminación</h3>
+        <p className="mt-2 text-sm text-gray-500">
+          ¿Estás seguro de que deseas eliminar el tipo de sensor{" "}
+          <strong className="text-gray-800">"{sensorName}"</strong>? Esta acción no se puede deshacer.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="flat" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button color="danger" onClick={onConfirm} disabled={isDeleting}>
+            {isDeleting ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};

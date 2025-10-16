@@ -1,40 +1,56 @@
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, Min, IsArray, ValidateNested, IsString, Length } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
-export class CreateSubloteDto {
-  // Latitud geográfica del sublote (número decimal)
-   @ApiProperty({
-    description: 'Latitud del sublote (número decimal).',
-    example: 6.25,
-  })
-  @IsNumber({}, { message: 'La latitud del sublote debe ser un número.' })
+class CoordenadaSubloteDto {
+  @ApiProperty({ description: 'Latitud del punto del sublote', example: 4.611 })
+  @IsNumber({}, { message: 'La latitud_sublote debe ser un número' })
   latitud_sublote: number;
 
-  // Longitud geográfica del sublote (número decimal)
-  @ApiProperty({
-    description: 'Longitud  del sublote (número decimal).',
-    example: 5.56,
-  })
-  @IsNumber({}, { message: 'La longitud del sublote debe ser un número.' })
+  @ApiProperty({ description: 'Longitud del punto del sublote', example: -74.082 })
+  @IsNumber({}, { message: 'La longitud_sublote debe ser un número' })
   longitud_sublote: number;
+}
 
-  // Nombre identificador del sublote
-  @ApiProperty({
-    description: 'Nombre del sublote.',
-    example: 'Cacao 2',
-  })
-  @IsString({ message: 'El nombre del sublote debe ser una cadena de texto.' })
+export class CreateSubloteDto {
+  /*
+  Nombre identificador del sublote
+  */
+  @ApiProperty({ description: 'Nombre del sublote', example: 'Bloque A' })
+  @IsString({ message: 'El nombre del sublote debe ser un texto' })
+  @Length(1, 100, { message: 'El nombre debe tener entre 1 y 100 caracteres' })
   nombre_sublote: string;
 
-  // Descripción general del sublote
+  /*
+  Área total del sublote en metros cuadrados.
+  Debe ser un número positivo mayor a cero.
+  */
   @ApiProperty({
-    description: 'Descripción general del sublote.',
-    example: 'Sublote destinado a cultivo de cacao',
+    description: 'Área total del sublote en metros cuadrados',
+    example: 120,
   })
-  @IsString({
-    message: 'La descripción del sublote debe ser una cadena de texto.',
+  @IsNumber({}, { message: 'El área del sublote debe ser un número' })
+  @Min(1, { message: 'El área del sublote debe ser mayor a cero' })
+  area_sublote: number;
+
+  /*
+  Array de coordenadas que definen el polígono del sublote.
+  Cada punto tiene latitud_sublote y longitud_sublote.
+  */
+  @ApiProperty({
+    description: 'Polígono del sublote como array de coordenadas',
+    type: [CoordenadaSubloteDto],
+    example: [
+      { latitud_sublote: 4.611, longitud_sublote: -74.082 },
+      { latitud_sublote: 4.611, longitud_sublote: -74.081 },
+      { latitud_sublote: 4.610, longitud_sublote: -74.081 },
+      { latitud_sublote: 4.610, longitud_sublote: -74.082 },
+    ],
   })
-  descripcion_sublote: string;
+  @IsArray({ message: 'coordenadas_sublote debe ser un array' })
+  @ValidateNested({ each: true })
+  @Type(() => CoordenadaSubloteDto)
+  coordenadas_sublote: CoordenadaSubloteDto[];
 
   // Clave foránea que relaciona el sublote con un lote específico
   @ApiProperty({

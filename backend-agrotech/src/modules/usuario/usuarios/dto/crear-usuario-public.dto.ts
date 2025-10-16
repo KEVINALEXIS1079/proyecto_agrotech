@@ -40,13 +40,22 @@ export class RegistrarUsuarioPublicDTO {
   apellido_usuario: string;
 
   @ApiProperty({
-    description: 'Teléfono del usuario (10 dígitos)',
-    example: '3205874152',
-  })
+      description: 'Teléfono del usuario (10 dígitos)',
+      example: '3205874152',
+    })
   @IsString({ message: 'El teléfono debe ser una cadena numérica' })
-  @Length(10, 10, { message: 'El número debe tener exactamente 10 dígitos' })
+   @Length(10, 10, { message: 'El número debe tener exactamente 10 dígitos' })
   @Matches(/^[0-9]+$/, { message: 'El teléfono solo debe contener números' })
   telefono_usuario: string;
+
+  @ApiProperty({
+    description: 'ID de la ficha del usuario',
+    example: 'F12345',
+  })
+  @Matches(/^[0-9]+$/, { message: 'El ID de la ficha solo debe contener números' })
+  @MaxLength(10, { message: 'El ID de la ficha no debe superar los 10 caracteres' })
+  @IsNotEmpty({ message: 'El ID de la ficha no puede estar vacío' })
+  id_ficha: string;
 
   @ApiProperty({
     description: 'Correo electrónico del usuario',

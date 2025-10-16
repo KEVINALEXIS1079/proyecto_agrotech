@@ -50,6 +50,15 @@ export class CreateUsuarioDto {
   telefono_usuario: string;
 
   @ApiProperty({
+    description: 'ID de la ficha del usuario',
+    example: 'F12345',
+  })
+  @Matches(/^[0-9]+$/, { message: 'El ID de la ficha solo debe contener números' })
+  @MaxLength(10, { message: 'El ID de la ficha no debe superar los 10 caracteres' })
+  @IsNotEmpty({ message: 'El ID de la ficha no puede estar vacío' })
+  id_ficha: string;
+
+  @ApiProperty({
     description: 'Correo electrónico del usuario',
     example: 'usuario@mail.com',
   })

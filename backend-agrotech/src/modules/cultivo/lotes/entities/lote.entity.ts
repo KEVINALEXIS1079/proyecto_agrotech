@@ -6,26 +6,24 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Sublote } from 'src/modules/cultivo/sublotes/entities/sublote.entity';
-
 @Entity({ name: 'lotes' })
 export class Lote {
-
-//Identificador único del lote (llave primaria).
   @PrimaryGeneratedColumn()
   id_lote_pk: number;
 
+  // Nombre identificador del lote
+  @Column({ type: 'varchar', length: 100, nullable: false })
+  nombre_lote: string;
 
-//Área del lote en metros cuadrados (u otra unidad definida por el sistema).
-  @Column({ type: 'float' })
+  @Column({ type: 'float', nullable: false })
   area_lote: number;
 
-
-//Relación uno a muchos: un lote puede contener varios sublotes.
+  @Column({ type: 'json', nullable: false })
+  coordenadas_lote: { latitud_lote: number; longitud_lote: number }[];
 
   @OneToMany(() => Sublote, (sublote) => sublote.lote)
   sublotes: Sublote[];
 
-  // Fecha de eliminación lógica (soft delete)
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
   delete_at: Date | null;
 }
