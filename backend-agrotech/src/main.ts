@@ -7,42 +7,55 @@ import {
   injectHtmlTitleMiddleware,
 } from './configs/swagger.config';
 import { apiReference } from '@scalar/nestjs-api-reference';
-import { setupAsyncApi } from './configs/asyncapi.config'; // 🔹 ojo: nombre en minúscula (setupAsyncApi)
+import { setupAsyncApi } from './configs/asyncapi.config';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // =======================
-  // 🌐 CONFIGURAR CORS
+  // SERVIR ARCHIVOS ESTÁTICOS (uploads)
+  // =======================
+  //  Usar process.cwd() en lugar de __dirname, porque Nest compila a /dist
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
+  });
+
+  // =======================
+  // CONFIGURAR CORS
   // =======================
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: ['http://localhost:3000'], // se puede expandir con más dominios
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 
   // =======================
-  // 🌍 PREFIJO GLOBAL
+  // PREFIJO GLOBAL
   // =======================
   app.setGlobalPrefix('api/v1');
 
   // =======================
-  // ✅ VALIDACIÓN GLOBAL DTOs
+  // VALIDACIÓN GLOBAL DTOs
   // =======================
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true, // Convierte strings a números/booleanos
+      },
     }),
   );
 
   // =======================
-  // 📘 CONFIGURAR SWAGGER (Scalar)
+  // CONFIGURAR SWAGGER (Scalar)
   // =======================
   setupSwagger(app);
 
-  // Middleware para cambiar el <title> de Scalar UI
+  // Cambiar el <title> de Scalar UI
   app.use('/api/v1/docs', injectHtmlTitleMiddleware());
 
   // UI de Scalar (REST)
@@ -57,18 +70,20 @@ async function bootstrap() {
   );
 
   // =======================
-  // ⚡ CONFIGURAR ASYNCAPI (WebSockets)
+  // CONFIGURAR ASYNCAPI (WebSockets)
   // =======================
-  await setupAsyncApi(app); // 🔹 función importada desde asyncapi.config.ts
+  await setupAsyncApi(app);
 
   // =======================
-  // 🚀 INICIAR SERVIDOR
+  // INICIAR SERVIDOR
   // =======================
   const PORT = 4000;
   await app.listen(PORT);
 
-  console.log(`✅ REST Docs (Scalar): http://localhost:${PORT}/api/v1/docs`);
-  console.log(`⚡ WebSocket Docs (AsyncAPI): http://localhost:${PORT}/asyncapi`);
+  console.log(` REST Docs (Scalar): http://localhost:${PORT}/api/v1/docs`);
+  console.log(` Servidor corriendo en: http://localhost:${PORT}`);
+  console.log(` WebSocket Docs (AsyncAPI): http://localhost:${PORT}/asyncapi`);
+  console.log(` Archivos disponibles en: http://localhost:${PORT}/uploads`);
 }
 
 bootstrap();

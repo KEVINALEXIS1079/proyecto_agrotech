@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {Avatar, Button, Card, CardBody, CardFooter, CardHeader, Chip, Divider, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Select, SelectItem, Spinner, Tab, Tabs, Textarea} from "@heroui/react";
 import {Camera, Check, Eye, EyeOff, KeyRound, Mail, User as UserIcon, UserRoundCog} from "lucide-react";
-import {usePerfil} from "../features/usePerfil";
+import {usePerfil} from "../features/PerfilFeature";
 import type { UpdateUserInput } from "../model/types";
 
 export default function PerfilPage() {

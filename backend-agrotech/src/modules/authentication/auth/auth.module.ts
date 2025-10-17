@@ -1,25 +1,33 @@
+// src/modules/auth/auth.module.ts
 import { Module } from '@nestjs/common';
-import { AuthService } from './services/auth.service';
-import { AuthController } from './controllers/auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+
+import { AuthService } from './services/auth.service';
+import { AuthController } from './controllers/auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Usuario } from 'src/modules/usuario/usuarios/entities/usuario.entity';
-import { UsuariosModule } from 'src/modules/usuario/usuarios/usuarios.module'; // Importar módulo de usuarios
+
+import { UsuariosModule } from 'src/modules/usuario/usuarios/usuarios.module';
 
 @Module({
   imports: [
+    ConfigModule,         // lee variables de entorno
     PassportModule,
-    JwtModule.register({
-      secret: 'tu_clave_secreta', // usa env en producción
-      signOptions: { expiresIn: '1d' },
+    UsuariosModule,       // exporta UsuariosService que usa tu strategy/controller
+
+    // Usa env y registra async para no hardcodear secretos
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET', 'fallback_dev_secret'),
+        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '1d') },
+      }),
+      inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Usuario]), // Registrar la entidad aquí
-    UsuariosModule, //  Asegúrate de importar el módulo que exporta UsuarioService si lo necesitas
   ],
-  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy],
+  exports: [AuthService], // exporta si otros módulos necesitan AuthService
 })
 export class AuthModule {}

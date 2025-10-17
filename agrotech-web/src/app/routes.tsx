@@ -24,7 +24,7 @@ import { FinanzasPage, ListaPageFinanzas, CrearPageFinanzas, EditarPageFinanzas 
 
 import { PageReportes, ListaPageReporte, CrearPageReporte, EditarPageReporte } from "@/modules/reportes/pages/indexPageReportes";
 
-import {AsignarPermisosRolPage, AsignarPermisosUsuarioPage, CrearPermisoPage, ListaPermisosPage, QuitarPermisosUsuarioPage} from "@/modules/permisos/permisos/pages/indexPagePermisos";
+import {CrearPermisoPage, ListaPermisosPage} from "@/modules/permisos/permisos/pages/indexPagePermisos";
 
 import { CrearPageIot, /*EditarPageIot, IotPage */} from "@/modules/iot/Sensor/pages/indexPageIot";
 
@@ -181,11 +181,8 @@ export default function AppRoutes() {
         <Route path="/editar-reporte" element={<EditarPageReporte />} />
 
         {/* Permisos */}
-        <Route path="/permisos-asignar-rol" element={<AsignarPermisosRolPage />} />
-        <Route path="/permisos-asignar-usuario" element={<AsignarPermisosUsuarioPage />} />
-        <Route path="/lista-permisos" element={<ListaPermisosPage />} />
+        <Route path="/permisos" element={<ListaPermisosPage />} />
         <Route path="/crear-permiso" element={<CrearPermisoPage />} />
-        <Route path="/quitar-permisos-usuario" element={<QuitarPermisosUsuarioPage />} />
           
 
 

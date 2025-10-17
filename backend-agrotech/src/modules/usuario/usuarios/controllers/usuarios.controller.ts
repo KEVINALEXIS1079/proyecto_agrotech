@@ -25,6 +25,7 @@ import { CustomFileInterceptor } from 'src/common/services/uploads/custom-file.i
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { UsuariosGateway } from '../gateways/usuarios.gateway';
 
+
 @ApiTags('Usuarios')
 @ApiBearerAuth('access-token')
 @Controller('usuarios')
@@ -34,37 +35,56 @@ export class UsuariosController {
     private readonly usuariosGateway: UsuariosGateway,
   ) {}
 
-  @Post('public')
-  @UseInterceptors(CustomFileInterceptor.create('img_usuario', 'usuarios'))
-  @ApiConsumes('multipart/form-data')
-  @ApiOperation({
-    summary: 'Registrar un usuario público',
-    description: 'Permite registrar un usuario sin autenticación previa con rol "Invitado". Incluye carga de imagen.',
-  })
-  @ApiResponse({ status: 201, description: 'Usuario registrado exitosamente', schema: { example: { message: 'Usuario creado correctamente con rol: Invitado' } } })
-  @ApiResponse({ status: 400, description: 'Correo o cédula ya existen' })
-  @ApiResponse({ status: 404, description: 'Rol "Invitado" no encontrado' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        cedula_usuario: { type: 'string', example: '1234567890' },
-        nombre_usuario: { type: 'string', example: 'María' },
-        apellido_usuario: { type: 'string', example: 'Rojas' },
-        telefono_usuario: { type: 'string', example: '3205874152' },
-        correo_usuario: { type: 'string', example: 'usuario@gmail.com' },
-        contrasena_usuario: { type: 'string', example: 'clave123' },
-        img_usuario: { type: 'string', format: 'binary' },
-      },
+@Post('public')
+@UseInterceptors(CustomFileInterceptor.create('img_usuario', 'usuarios'))
+@ApiConsumes('multipart/form-data')
+@ApiOperation({
+  summary: 'Registrar un usuario público',
+  description:
+    'Permite registrar un usuario sin autenticación previa con rol "Invitado". Incluye carga de imagen.',
+})
+@ApiResponse({
+  status: 201,
+  description: 'Usuario registrado exitosamente',
+  schema: { example: { message: 'Usuario creado correctamente con rol: Invitado' } },
+})
+@ApiResponse({ status: 400, description: 'Correo o cédula ya existen' })
+@ApiResponse({ status: 404, description: 'Rol "Invitado" no encontrado' })
+@ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      cedula_usuario: { type: 'string', example: '1234567890' },
+      nombre_usuario: { type: 'string', example: 'María' },
+      apellido_usuario: { type: 'string', example: 'Rojas' },
+      telefono_usuario: { type: 'string', example: '3205874152' },
+      correo_usuario: { type: 'string', example: 'usuario@gmail.com' },
+      contrasena_usuario: { type: 'string', example: 'clave123' },
+      img_usuario: { type: 'string', format: 'binary' },
     },
-  })
-  createPublic(
-    @Body() dto: RegistrarUsuarioPublicDTO,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
-    const imgPath = file ? file.path : undefined;
-    return this.usuariosService.createPublic(dto, imgPath);
-  }
+  },
+})
+async createPublic(
+  @Body() dto: RegistrarUsuarioPublicDTO,
+  @UploadedFile() file?: Express.Multer.File,
+) {
+  // 1) preparar ruta de imagen (opcional: normalizar en Windows)
+  // import * as path from 'path';  // si aún no lo tienes arriba
+  const imgPath = file
+    ? /** path.relative evita rutas absolutas largas en la BD */
+      require('path').relative(process.cwd(), file.path).replace(/\\/g, '/')
+    : undefined;
+
+  // 2) crear usuario (esperar a que se guarde)
+  const message = await this.usuariosService.createPublic(dto, imgPath);
+
+  // 3) notificar a /usuarios para refrescar la tabla en tiempo real
+  this.usuariosGateway.notifyUsersListChanged();
+
+  // 4) responder
+  return { message };
+}
+
 
   @Post()
   @UseGuards(JwtAuthGuard, PermisosGuard)
