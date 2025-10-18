@@ -1,7 +1,7 @@
 // src/modules/usuarios/usuarios/hooks/useUsuariosLive.ts
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { usuarioService } from "../api/usuarioService";
+import { usuarioService } from "../api/usuario.service";
 
 export function useUsuariosLive() {
   const qc = useQueryClient();

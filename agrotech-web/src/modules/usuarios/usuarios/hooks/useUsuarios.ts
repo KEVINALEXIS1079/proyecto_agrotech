@@ -8,7 +8,7 @@ import {
   updateEstado as svcUpdateEstado,
   softDeleteUsuario as svcSoftDeleteUsuario,
   restoreUsuario as svcRestoreUsuario,
-} from "../api/usuarioService";
+} from "../api/usuario.service";
 
 export type TabKey = "gestionar" | "restaurar";
 

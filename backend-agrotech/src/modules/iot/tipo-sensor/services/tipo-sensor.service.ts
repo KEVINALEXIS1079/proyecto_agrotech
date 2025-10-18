@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, IsNull } from 'typeorm';
 import { TipoSensor } from '../entities/tipo-sensor.entity';
 import { CreateTipoSensorDto } from '../dto/create-tipo-sensor.dto';
 import { UpdateTipoSensorDto } from '../dto/update-tipo-sensor.dto';
@@ -37,6 +37,13 @@ export class TipoSensorService {
     });
     if (!tipoSensor) throw new NotFoundException('Tipo de sensor no encontrado');
     return tipoSensor;
+  }
+
+  async findAllDeleted(): Promise<TipoSensor[]> {
+    return await this.tipoSensorRepository.find({
+      withDeleted: true,
+      where: { delete_at: Not(IsNull()) }, 
+    });
   }
 
   async update(id_tipo_sensor_pk: number, dto: UpdateTipoSensorDto): Promise<string> {

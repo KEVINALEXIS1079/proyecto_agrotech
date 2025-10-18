@@ -1,1 +1,1 @@
-export * as permisosApi from './api/permisoService'; export * as permisosModel from './model/types';
+export * as permisosApi from './api/permiso.service'; export * as permisosModel from './model/types';

@@ -43,7 +43,7 @@ export function SensorFields({
 
       <Select label="Tipo de Sensor" value={idTipoSensor} onChange={(e) => onChange("idTipoSensor", e.target.value)} isRequired>
         {tiposSensor.map((t) => (
-          <SelectItem key={t.id_tipo_sensor_pk}>{t.nombre_tipo_sensor}</SelectItem>
+          <SelectItem key={t.id_tipo_sensor}>{t.nombre}</SelectItem>
         ))}
       </Select>
     </>

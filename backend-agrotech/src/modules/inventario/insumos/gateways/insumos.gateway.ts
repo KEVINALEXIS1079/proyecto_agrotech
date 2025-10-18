@@ -4,126 +4,80 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { InsumosService } from '../services/insumos.service';
 import { CreateInsumoDto } from '../dto/create-insumo.dto';
 import { UpdateInsumoDto } from '../dto/update-insumo.dto';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
-/**
- * Gateway para manejar la comunicación en tiempo real
- * del módulo de Insumos.
- * Los clientes se conectan al namespace 'insumos' y
- * pueden escuchar/empezar eventos CRUD.
- */
 @WebSocketGateway({
-  namespace: '/insumos',
-  cors: {
-    origin: '*',
-  },
+  cors: { origin: '*' },
+  namespace: '/insumos', // IMPORTANTE: con barra inicial
 })
-export class InsumosGateway {
+export class InsumosGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly insumosService: InsumosService) {}
 
-  /**
-   * Crear un nuevo insumo.
-   * Evento: "insumo:create"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:insumos:create')
-  @SubscribeMessage('insumo:create')
-  async create(@MessageBody() dto: CreateInsumoDto, @ConnectedSocket() client: Socket) {
-    const nuevo = await this.insumosService.create(dto);
-    // Emitir actualización global a todos los clientes
-    this.server.emit('insumo:created', nuevo);
-    return { event: 'insumo:created', data: nuevo };
-  }
+  // Verificar conexiones
+  handleConnection(client: Socket) {}
 
-  /**
-   * Obtener todos los insumos.
-   * Evento: "insumo:findAll"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:insumos:read')
-  @SubscribeMessage('insumo:findAll')
-  async findAll() {
-    const insumos = await this.insumosService.findAll();
-    return { event: 'insumo:list', data: insumos };
-  }
+  handleDisconnect(client: Socket) {}
 
-  /**
-   * Obtener un insumo por ID.
-   * Evento: "insumo:findOne"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:insumos:read')
-  @SubscribeMessage('insumo:findOne')
-  async findOne(@MessageBody('id') id: number) {
-    const insumo = await this.insumosService.findOne(id);
-    return { event: 'insumo:detail', data: insumo };
-  }
-
-  /**
-   * Actualizar un insumo existente.
-   * Evento: "insumo:update"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:insumos:update')
-  @SubscribeMessage('insumo:update')
-  async update(
-    @MessageBody('id') id: number,
-    @MessageBody('data') dto: UpdateInsumoDto,
+  // Crear insumo
+  @SubscribeMessage('insumos:create')
+  async create(
+    @MessageBody() dto: CreateInsumoDto,
+    @ConnectedSocket() client: Socket,
   ) {
-    const actualizado = await this.insumosService.update(id, dto);
-    // Emitir evento global indicando la actualización
-    this.server.emit('insumo:updated', actualizado);
-    return { event: 'insumo:updated', data: actualizado };
+    const result = await this.insumosService.create(dto);
+    this.server.emit('insumos:created', result);
+    return result;
   }
 
-  /**
-   * Eliminar un insumo por ID.
-   * Evento: "insumo:remove"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:insumos:delete')
-  @SubscribeMessage('insumo:remove')
-  async remove(@MessageBody('id') id: number) {
-    const eliminado = await this.insumosService.remove(id);
-    this.server.emit('insumo:removed', { id });
-    return { event: 'insumo:removed', data: eliminado };
+  // Obtener todos los insumos
+  @SubscribeMessage('insumos:findAll')
+  async findAll(@ConnectedSocket() client: Socket) {
+    const result = await this.insumosService.findAll();
+    client.emit('insumos:list', result);
+    return result;
   }
 
-  /**
-   * Restaurar un insumo eliminado.
-   * Evento: "insumo:restore"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:insumos:update')
-  @SubscribeMessage('insumo:restore')
-  async restore(@MessageBody('id') id: number) {
-    const restaurado = await this.insumosService.restore(id);
-    this.server.emit('insumo:restored', restaurado);
-    return { event: 'insumo:restored', data: restaurado };
+  // Obtener un insumo
+  @SubscribeMessage('insumos:findOne')
+  async findOne(
+    @MessageBody('id_insumo_pk') id_insumo_pk: number,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const result = await this.insumosService.findOne(id_insumo_pk);
+    client.emit('insumos:detail', result);
+    return result;
   }
 
-  /**
-   * Evento opcional para detectar nuevas conexiones de clientes.
-   */
-  handleConnection(client: Socket) {
-    console.log(`Cliente conectado: ${client.id}`);
+  // Actualizar insumo
+  @SubscribeMessage('insumos:update')
+  async update(@MessageBody() data: { id_insumo_pk: number; dto: UpdateInsumoDto }) {
+    const result = await this.insumosService.update(data.id_insumo_pk, data.dto);
+    this.server.emit('insumos:updated', result);
+    return result;
   }
 
-  /**
-   * Evento opcional para detectar desconexiones de clientes.
-   */
-  handleDisconnect(client: Socket) {
-    console.log(`Cliente desconectado: ${client.id}`);
+  // Eliminar insumo
+  @SubscribeMessage('insumos:remove')
+  async remove(@MessageBody('id_insumo_pk') id_insumo_pk: number) {
+    const result = await this.insumosService.remove(id_insumo_pk);
+    this.server.emit('insumos:removed', { id_insumo_pk });
+    return result;
+  }
+
+  // Restaurar insumo
+  @SubscribeMessage('insumos:restore')
+  async restore(@MessageBody('id_insumo_pk') id_insumo_pk: number) {
+    const result = await this.insumosService.restore(id_insumo_pk);
+    this.server.emit('insumos:restored', result);
+    return result;
   }
 }

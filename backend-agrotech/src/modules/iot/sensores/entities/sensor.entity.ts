@@ -17,17 +17,23 @@ export class Sensor {
   @Column({ type: 'varchar', length: 255 })
   nombre_sensor: string;
 
-  @Column({ type:'float'})
-  valor_minimo
+  @Column({ type: 'float' })
+  valor_minimo;
 
-    @Column({ type:'float'})
-  valor_maximo
+  @Column({ type: 'float' })
+  valor_maximo;
 
   @Column({ type: 'date' })
   fecha_inicio_sensor: Date;
 
   @Column({ type: 'date' })
   fecha_fin_sensor: Date;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  imagen_sensor: string;
+
+  @Column({ type: 'boolean', default: true })
+  activo: boolean;
 
   // Relación con Cultivo
   @ManyToOne(() => Cultivo, (cultivo) => cultivo.sensores, { nullable: false })

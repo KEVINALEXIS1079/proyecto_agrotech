@@ -12,7 +12,7 @@ export function useSubloteById(id?: number) {
 
     const load = async () => {
       try {
-        const data = await subloteService.getById(id);
+        const data = await subloteService.getSubloteById(id);
         setSublote(data);
       } catch (err: any) {
         setError(err.message);

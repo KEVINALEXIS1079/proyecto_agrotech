@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
 import { loteService } from "../api/lotes.service";
 import type { Lote } from "../model/types";
+interface UseLoteListReturn {
+  lotes: Lote[];
+  loading: boolean;
+  error: string | null;
+}
 
-export function useLoteList() {
+export function useLoteList(): UseLoteListReturn {
   const [lotes, setLotes] = useState<Lote[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = async () => {
+    async function fetchLotes() {
+      setLoading(true);
       try {
         const data = await loteService.listLotes();
         setLotes(data);
@@ -17,23 +23,10 @@ export function useLoteList() {
       } finally {
         setLoading(false);
       }
-    };
-
-    load();
-
-    // Conectar a WebSocket
-    const socket = loteService.connect();
-    socket.on("lotes:created", load);
-    socket.on("lotes:updated", load);
-    socket.on("lotes:removed", load);
-
-    return () => {
-      socket.off("lotes:created", load);
-      socket.off("lotes:updated", load);
-      socket.off("lotes:removed", load);
-      loteService.disconnect();
-    };
+    }
+    fetchLotes();
   }, []);
 
-  return { lotes, loading, error, setLotes };
+  return { lotes, loading, error };
 }
+

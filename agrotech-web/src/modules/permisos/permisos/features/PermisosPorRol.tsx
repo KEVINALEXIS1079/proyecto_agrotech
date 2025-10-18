@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Button,
   Switch,
@@ -12,6 +12,11 @@ import {
   Tab,
   Select,
   SelectItem,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
 } from "@heroui/react";
 import { Layers } from "lucide-react";
 
@@ -39,6 +44,55 @@ import {
 
 type ModOpt = { id: string; nombre: string };
 
+/* =========================
+ * Confirm Dialog (reutilizable)
+ * ========================= */
+type ConfirmState = {
+  open: boolean;
+  title: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm?: () => void;
+};
+
+function ConfirmDialog({
+  state,
+  setState,
+  isBusy = false,
+}: {
+  state: ConfirmState;
+  setState: (s: ConfirmState) => void;
+  isBusy?: boolean;
+}) {
+  const onClose = () => setState({ ...state, open: false });
+
+  return (
+    <Modal isOpen={state.open} onOpenChange={onClose} placement="center" hideCloseButton>
+      <ModalContent>
+        <ModalHeader className="text-base font-semibold">{state.title}</ModalHeader>
+        {state.message ? <ModalBody className="text-default-600 whitespace-pre-line">{state.message}</ModalBody> : null}
+        <ModalFooter>
+          <Button variant="flat" onPress={onClose} isDisabled={isBusy}>
+            {state.cancelText ?? "Cancelar"}
+          </Button>
+          <Button
+            color="danger"
+            onPress={() => {
+              const cb = state.onConfirm;
+              onClose();
+              cb?.();
+            }}
+            isLoading={isBusy}
+          >
+            {state.confirmText ?? "Confirmar"}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}
+
 export default function PermisosPorRol() {
   const [rolId, setRolId] = useState<number | null>(null);
   const [moduleId, setModuleId] = useState<number | undefined>(undefined);
@@ -48,10 +102,10 @@ export default function PermisosPorRol() {
   const { roles, counts } = useRolesActivos();
   const eliminados = useRolesEliminados();
 
-  // permisos filtrados (para la tabla)
+
   const sel = usePermisosRoleSelection(rolId ?? undefined, moduleId);
 
-  // permisos SIN filtrar (para poblar el select de módulos sin que se “auto-vacíe”)
+
   const selAll = usePermisosRoleSelection(rolId ?? undefined, undefined);
 
   const toggle = useTogglePermisoOnRole();
@@ -64,13 +118,13 @@ export default function PermisosPorRol() {
   const permisos = sel.data?.permisos ?? [];
   const allOn = useMemo(() => permisos.length > 0 && permisos.every((p) => p.selected), [permisos]);
 
-  // ===== nombres “bonitos” de módulos desde la respuesta SIN filtrar =====
+
   const moduleMap = useMemo(
     () => buildModuleMapFromPermisos(selAll.data?.permisos ?? []),
     [selAll.data?.permisos]
   );
 
-  // Opciones del Select (incluye "Todos")
+
   const MODULE_SELECT_OPTIONS: ModOpt[] = useMemo(() => {
     const opts = moduleOptionsFromMap(moduleMap).map((o) => ({
       id: String(o.id),
@@ -87,6 +141,37 @@ export default function PermisosPorRol() {
   // Contadores para tabs
   const activosCount = rolesActivos.length;
   const eliminadosCount = (eliminados.data ?? []).length;
+
+  // =========================
+  // Confirm state / helpers
+  // =========================
+  const [confirm, setConfirm] = useState<ConfirmState>({
+    open: false,
+    title: "",
+    message: "",
+  });
+
+  const ask = useCallback(
+    (cfg: Omit<ConfirmState, "open">) => {
+      setConfirm({
+        open: true,
+        title: cfg.title,
+        message: cfg.message,
+        confirmText: cfg.confirmText,
+        cancelText: cfg.cancelText ?? "Cancelar",
+        onConfirm: cfg.onConfirm,
+      });
+    },
+    []
+  );
+
+  // Cargando de mutaciones que usan el modal
+  const anyBusy =
+    crud.rename.isPending ||
+    crud.remove.isPending ||
+    crud.restore.isPending ||
+    crud.create.isPending ||
+    toggle.isPending;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
@@ -144,7 +229,18 @@ export default function PermisosPorRol() {
                         <TableCell className="font-medium">{r.nombre}</TableCell>
                         <TableCell>
                           <div className="flex justify-end">
-                            <Button size="sm" variant="light" onPress={() => crud.restore.mutate(r.id)}>
+                            <Button
+                              size="sm"
+                              variant="light"
+                              onPress={() =>
+                                ask({
+                                  title: "¿Restaurar rol?",
+                                  message: `Se restaurará el rol "${r.nombre}".`,
+                                  confirmText: "Restaurar",
+                                  onConfirm: () => crud.restore.mutate(r.id),
+                                })
+                              }
+                            >
                               restaurar
                             </Button>
                           </div>
@@ -231,15 +327,25 @@ export default function PermisosPorRol() {
                     isDisabled={!currentRole || permisos.length === 0}
                     onPress={() => {
                       if (!currentRole || permisos.length === 0) return;
-                      permisos.forEach((p) => {
-                        if (p.selected !== !allOn) {
-                          toggle.mutate({
-                            roleId: currentRole.id,
-                            permisoId: p.id,
-                            enable: !allOn,
-                            moduleId, // ⬅️ IMPORTANTE
+                      const accion = allOn ? "desactivar" : "asignar";
+                      ask({
+                        title: `¿${allOn ? "Desactivar" : "Asignar"} todos?`,
+                        message: `Se van a ${accion} ${permisos.length} permisos en el rol "${currentRole.nombre}" para ${
+                          moduleId ? `el módulo seleccionado` : "todos los módulos visibles"
+                        }.`,
+                        confirmText: allOn ? "Desactivar todos" : "Asignar todos",
+                        onConfirm: () => {
+                          permisos.forEach((p) => {
+                            if (p.selected !== !allOn) {
+                              toggle.mutate({
+                                roleId: currentRole.id,
+                                permisoId: p.id,
+                                enable: !allOn,
+                                moduleId,
+                              });
+                            }
                           });
-                        }
+                        },
                       });
                     }}
                   >
@@ -268,15 +374,22 @@ export default function PermisosPorRol() {
                                 <Switch
                                   color="success"
                                   isSelected={!!p.selected}
-                                  onValueChange={(v) =>
-                                    currentRole &&
-                                    toggle.mutate({
-                                      roleId: currentRole.id,
-                                      permisoId: p.id,
-                                      enable: v,
-                                      moduleId, // ⬅️ IMPORTANTE
-                                    })
-                                  }
+                                  onValueChange={(v) => {
+                                    if (!currentRole) return;
+                                    const label = buildPermisoLabel(p);
+                                    ask({
+                                      title: v ? "¿Activar este permiso?" : "¿Desactivar este permiso?",
+                                      message: `Rol: ${currentRole.nombre}\nPermiso: ${label}`,
+                                      confirmText: v ? "Activar" : "Desactivar",
+                                      onConfirm: () =>
+                                        toggle.mutate({
+                                          roleId: currentRole.id,
+                                          permisoId: p.id,
+                                          enable: v,
+                                          moduleId,
+                                        }),
+                                    });
+                                  }}
                                 />
                               </div>
                             </TableCell>
@@ -302,8 +415,38 @@ export default function PermisosPorRol() {
         onClose={() => setShowInfo(false)}
         rol={currentRole?.nombre ?? null}
         usersCount={currentRole ? roleUsersMap.get(currentRole.id) ?? 0 : 0}
-        onEdit={(nuevo) => currentRole && crud.rename.mutate({ id: currentRole.id, nombre: nuevo })}
-        onDelete={() => currentRole && crud.remove.mutate(currentRole.id)}
+        onEdit={(nuevo) =>
+          currentRole &&
+          nuevo &&
+          nuevo.trim() &&
+          nuevo.trim() !== currentRole.nombre &&
+          ask({
+            title: "Confirmar cambio de nombre",
+            message: `¿Renombrar el rol "${currentRole.nombre}" a "${nuevo.trim()}"?`,
+            confirmText: "Guardar",
+            onConfirm: () =>
+              crud.rename.mutate(
+                { id: currentRole.id, nombre: nuevo.trim() },
+                { onSuccess: () => setShowInfo(false) }
+              ),
+          })
+        }
+        onDelete={() =>
+          currentRole &&
+          ask({
+            title: "¿Eliminar rol?",
+            message:
+              'Se enviará a "Eliminados". Si el rol tiene usuarios asociados, asegúrate de migrarlos antes.',
+            confirmText: "Eliminar",
+            onConfirm: () =>
+              crud.remove.mutate(currentRole.id, {
+                onSuccess: () => {
+                  setShowInfo(false);
+                  setRolId(null);
+                },
+              }),
+          })
+        }
       />
 
       <AddRoleModal
@@ -316,6 +459,9 @@ export default function PermisosPorRol() {
         }
         existing={rolesActivos.map((r) => r.nombre)}
       />
+
+      {/* Diálogo global de confirmación */}
+      <ConfirmDialog state={confirm} setState={setConfirm} isBusy={anyBusy} />
     </div>
   );
 }

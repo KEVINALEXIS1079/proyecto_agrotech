@@ -4,130 +4,80 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ProveedoresService } from '../services/proveedores.service';
 import { CreateProveedorDto } from '../dto/create-proveedor.dto';
 import { UpdateProveedorDto } from '../dto/update-proveedor.dto';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
-/**
- * Gateway encargado de manejar eventos WebSocket
- * relacionados con el módulo de Proveedores.
- * Los clientes deben conectarse al namespace 'proveedores'
- * para enviar o recibir eventos de este recurso.
- */
 @WebSocketGateway({
+  cors: { origin: '*' },
   namespace: '/proveedores',
-  cors: {
-    origin: '*',
-  },
 })
-export class ProveedoresGateway {
+export class ProveedoresGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly proveedoresService: ProveedoresService) {}
 
-  /**
-   * Crear un nuevo proveedor.
-   * Evento: "proveedor:create"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:proveedores:create')
-  @SubscribeMessage('proveedor:create')
+  // Verificar conexiones
+  handleConnection(client: Socket) {}
+
+  handleDisconnect(client: Socket) {}
+
+  // Crear proveedor
+  @SubscribeMessage('proveedores:create')
   async create(
-    @MessageBody() createProveedorDto: CreateProveedorDto,
+    @MessageBody() dto: CreateProveedorDto,
     @ConnectedSocket() client: Socket,
   ) {
-    const proveedor = await this.proveedoresService.create(createProveedorDto);
-    this.server.emit('proveedor:created', proveedor);
-    return { event: 'proveedor:created', data: proveedor };
+    const result = await this.proveedoresService.create(dto);
+    this.server.emit('proveedores:created', result);
+    return result;
   }
 
-  /**
-   * Obtener todos los proveedores.
-   * Evento: "proveedor:findAll"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:proveedores:read')
-  @SubscribeMessage('proveedor:findAll')
-  async findAll() {
-    const proveedores = await this.proveedoresService.findAll();
-    return { event: 'proveedor:list', data: proveedores };
+  // Obtener todos los proveedores
+  @SubscribeMessage('proveedores:findAll')
+  async findAll(@ConnectedSocket() client: Socket) {
+    const result = await this.proveedoresService.findAll();
+    client.emit('proveedores:list', result);
+    return result;
   }
 
-  /**
-   * Obtener un proveedor específico por ID.
-   * Evento: "proveedor:findOne"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:proveedores:read')
-  @SubscribeMessage('proveedor:findOne')
-  async findOne(@MessageBody('id') id_proveedor_pk: number) {
-    const proveedor = await this.proveedoresService.findOne(id_proveedor_pk);
-    return { event: 'proveedor:detail', data: proveedor };
-  }
-
-  /**
-   * Actualizar un proveedor existente.
-   * Evento: "proveedor:update"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:proveedores:update')
-  @SubscribeMessage('proveedor:update')
-  async update(
-    @MessageBody('id') id_proveedor_pk: number,
-    @MessageBody('data') updateProveedorDto: UpdateProveedorDto,
+  // Obtener un proveedor
+  @SubscribeMessage('proveedores:findOne')
+  async findOne(
+    @MessageBody('id_proveedor_pk') id_proveedor_pk: number,
+    @ConnectedSocket() client: Socket,
   ) {
-    const proveedor = await this.proveedoresService.update(
-      id_proveedor_pk,
-      updateProveedorDto,
-    );
-    this.server.emit('proveedor:updated', proveedor);
-    return { event: 'proveedor:updated', data: proveedor };
+    const result = await this.proveedoresService.findOne(id_proveedor_pk);
+    client.emit('proveedores:detail', result);
+    return result;
   }
 
-  /**
-   * Eliminar un proveedor.
-   * Evento: "proveedor:remove"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:proveedores:delete')
-  @SubscribeMessage('proveedor:remove')
-  async remove(@MessageBody('id') id_proveedor_pk: number) {
-    const eliminado = await this.proveedoresService.remove(id_proveedor_pk);
-    this.server.emit('proveedor:removed', { id: id_proveedor_pk });
-    return { event: 'proveedor:removed', data: eliminado };
+  // Actualizar proveedor
+  @SubscribeMessage('proveedores:update')
+  async update(@MessageBody() data: { id_proveedor_pk: number; dto: UpdateProveedorDto }) {
+    const result = await this.proveedoresService.update(data.id_proveedor_pk, data.dto);
+    this.server.emit('proveedores:updated', result);
+    return result;
   }
 
-  /**
-   * Restaurar un proveedor eliminado.
-   * Evento: "proveedor:restore"
-   */
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('inventario:proveedores:update')
-  @SubscribeMessage('proveedor:restore')
-  async restore(@MessageBody('id') id_proveedor_pk: number) {
-    const restaurado = await this.proveedoresService.restore(id_proveedor_pk);
-    this.server.emit('proveedor:restored', restaurado);
-    return { event: 'proveedor:restored', data: restaurado };
+  // Eliminar proveedor
+  @SubscribeMessage('proveedores:remove')
+  async remove(@MessageBody('id_proveedor_pk') id_proveedor_pk: number) {
+    const result = await this.proveedoresService.remove(id_proveedor_pk);
+    this.server.emit('proveedores:removed', { id_proveedor_pk });
+    return result;
   }
 
-  /**
-   * Detectar nuevas conexiones al gateway.
-   */
-  handleConnection(client: Socket) {
-    console.log(`Cliente conectado: ${client.id}`);
-  }
-
-  /**
-   * Detectar desconexiones del gateway.
-   */
-  handleDisconnect(client: Socket) {
-    console.log(`Cliente desconectado: ${client.id}`);
+  // Restaurar proveedor
+  @SubscribeMessage('proveedores:restore')
+  async restore(@MessageBody('id_proveedor_pk') id_proveedor_pk: number) {
+    const result = await this.proveedoresService.restore(id_proveedor_pk);
+    this.server.emit('proveedores:restored', result);
+    return result;
   }
 }

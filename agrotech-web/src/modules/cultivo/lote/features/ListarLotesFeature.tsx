@@ -10,16 +10,19 @@ import LoteCard from "../ui/LoteCard";
 import LoteMapList from "../widgets/LoteMapList";
 import LoteDeleteModal from "../ui/LoteDeleteModal";
 import { FiltrarLotesFeature } from "./FiltrarLotesFeature";
+import type { Lote, CreateLoteDTO } from "../model/types";
+
+import { loteService } from "../api/lotes.service";
 
 export default function ListarLotesFeature() {
   const { lotes, loading, error } = useLoteList();
 
   const [openDelete, setOpenDelete] = useState(false);
-  const [rowDelete, setRowDelete] = useState<any>(null);
-  const [lotesOrden, setLotesOrden] = useState<typeof lotes>([]);
-  const [filtered, setFiltered] = useState<typeof lotes>([]);
+  const [rowDelete, setRowDelete] = useState<Lote | null>(null);
+  const [lotesOrden, setLotesOrden] = useState<Lote[]>([]);
+  const [filtered, setFiltered] = useState<Lote[]>([]);
 
-  // Inicializar orden
+  // Inicializar orden al cargar lotes
   useEffect(() => {
     if (lotes.length && lotesOrden.length === 0) setLotesOrden(lotes);
   }, [lotes, lotesOrden.length]);
@@ -54,6 +57,35 @@ export default function ListarLotesFeature() {
     [lotesOrden]
   );
 
+  // 🔥 Integración WebSocket para actualizaciones en tiempo real
+  useEffect(() => {
+    const socket = loteService.connect();
+
+    socket.on("lotes:created", (nuevoLote: Lote) => {
+      setLotesOrden((prev) => [...prev, nuevoLote]);
+    });
+
+    socket.on("lotes:updated", (loteActualizado: Lote) => {
+      setLotesOrden((prev) =>
+        prev.map((l) =>
+          l.id_lote_pk === loteActualizado.id_lote_pk ? loteActualizado : l
+        )
+      );
+    });
+
+    socket.on("lotes:removed", ({ id }: { id: number }) => {
+      setLotesOrden((prev) => prev.filter((l) => l.id_lote_pk !== id));
+    });
+
+    socket.on("lotes:restored", (restaurado: Lote) => {
+      setLotesOrden((prev) => [...prev, restaurado]);
+    });
+
+    return () => {
+      loteService.disconnect();
+    };
+  }, []);
+
   // 🔥 Lógica de eliminación usando feature
   const { handleDelete, loading: deleting } = EliminarLoteFeature({
     onDeleted: (id: number) =>
@@ -67,7 +99,7 @@ export default function ListarLotesFeature() {
     setRowDelete(null);
   };
 
-  const openDeleteConfirm = (row: any) => {
+  const openDeleteConfirm = (row: Lote) => {
     setRowDelete(row);
     setOpenDelete(true);
   };
@@ -101,17 +133,19 @@ export default function ListarLotesFeature() {
         </Button>
       </div>
 
-      {/* ✅ Filtros + métricas combinadas */}
+      {/* Filtros */}
       <FiltrarLotesFeature lotes={lotesOrden} onFilteredChange={setFiltered} />
 
-      {/* 🗺️ Mapa interactivo */}
-      <Card className="border border-gray-200 relative z-0 overflow-hidden">
-        <CardBody className="h-[500px] p-0 rounded-lg">
-          <LoteMapList lotes={filteredMap} editable={false} />
-        </CardBody>
-      </Card>
+      {/* Mapa interactivo */}
+      {lotesMap.length > 0 && (
+        <Card className="border border-gray-200 relative z-0 overflow-hidden">
+          <CardBody className="h-[500px] p-0 rounded-lg">
+            <LoteMapList lotes={filteredMap} editable={false} />
+          </CardBody>
+        </Card>
+      )}
 
-      {/* 📋 Lista de lotes */}
+      {/* Lista de lotes */}
       {loading ? (
         <Card>
           <CardBody>Cargando lotes desde el servidor...</CardBody>
@@ -132,7 +166,7 @@ export default function ListarLotesFeature() {
         </div>
       )}
 
-      {/*  Modal de eliminación */}
+      {/* Modal de eliminación */}
       <LoteDeleteModal
         open={openDelete}
         onOpenChange={setOpenDelete}

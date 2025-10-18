@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Button,
   Switch,
@@ -10,6 +10,11 @@ import {
   TableRow,
   Select,
   SelectItem,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
 } from "@heroui/react";
 import { Layers } from "lucide-react";
 
@@ -29,6 +34,57 @@ import {
 } from "../model/modules-map";
 
 type ModOpt = { id: string; nombre: string };
+
+/* =========================
+ * Confirm Dialog (reutilizable)
+ * ========================= */
+type ConfirmState = {
+  open: boolean;
+  title: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm?: () => void;
+};
+
+function ConfirmDialog({
+  state,
+  setState,
+  isBusy = false,
+}: {
+  state: ConfirmState;
+  setState: (s: ConfirmState) => void;
+  isBusy?: boolean;
+}) {
+  const onClose = () => setState({ ...state, open: false });
+
+  return (
+    <Modal isOpen={state.open} onOpenChange={onClose} placement="center" hideCloseButton>
+      <ModalContent>
+        <ModalHeader className="text-base font-semibold">{state.title}</ModalHeader>
+        {state.message ? (
+          <ModalBody className="text-default-600 whitespace-pre-line">{state.message}</ModalBody>
+        ) : null}
+        <ModalFooter>
+          <Button variant="flat" onPress={onClose} isDisabled={isBusy}>
+            {state.cancelText ?? "Cancelar"}
+          </Button>
+          <Button
+            color="danger"
+            onPress={() => {
+              const cb = state.onConfirm;
+              onClose();
+              cb?.();
+            }}
+            isLoading={isBusy}
+          >
+            {state.confirmText ?? "Confirmar"}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}
 
 export default function PermisosPorUsuario() {
   const [selectedUser, setSelectedUser] = useState<{ id: number; nombre: string; rol?: any } | null>(null);
@@ -63,6 +119,31 @@ export default function PermisosPorUsuario() {
     () => new Set<string>([moduleId ? String(moduleId) : "__ALL__"]),
     [moduleId]
   );
+
+  // =========================
+  // Confirm state / helpers
+  // =========================
+  const [confirm, setConfirm] = useState<ConfirmState>({
+    open: false,
+    title: "",
+    message: "",
+  });
+
+  const ask = useCallback(
+    (cfg: Omit<ConfirmState, "open">) => {
+      setConfirm({
+        open: true,
+        title: cfg.title,
+        message: cfg.message,
+        confirmText: cfg.confirmText,
+        cancelText: cfg.cancelText ?? "Cancelar",
+        onConfirm: cfg.onConfirm,
+      });
+    },
+    []
+  );
+
+  const anyBusy = toggle.isPending;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
@@ -155,15 +236,24 @@ export default function PermisosPorUsuario() {
                   isDisabled={!selectedUser || permisos.length === 0}
                   onPress={() => {
                     if (!selectedUser || permisos.length === 0) return;
-                    permisos.forEach((p: any) => {
-                      if (p.selected !== !allOn) {
-                        toggle.mutate({
-                          userId: selectedUser.id,
-                          permisoId: p.id,
-                          enable: !allOn,
-                          moduleId, // ⬅️ IMPORTANTE para invalidar la query exacta
+                    const accion = allOn ? "desactivar" : "asignar";
+                    const modulo = getModuleLabelFromMap(moduleId, moduleMap);
+                    ask({
+                      title: `¿${allOn ? "Desactivar" : "Asignar"} todos?`,
+                      message: `Usuario: ${selectedUser.nombre}\nMódulo: ${modulo}\nAcción: ${accion} ${permisos.length} permisos.`,
+                      confirmText: allOn ? "Desactivar todos" : "Asignar todos",
+                      onConfirm: () => {
+                        permisos.forEach((p: any) => {
+                          if (p.selected !== !allOn) {
+                            toggle.mutate({
+                              userId: selectedUser.id,
+                              permisoId: p.id,
+                              enable: !allOn,
+                              moduleId, // ⬅️ mantiene el filtro actual
+                            });
+                          }
                         });
-                      }
+                      },
                     });
                   }}
                 >
@@ -184,15 +274,25 @@ export default function PermisosPorUsuario() {
                           <PermisoChip
                             checked={!!p.selected}
                             label={buildPermisoLabel(p)}
-                            onToggle={() =>
-                              selectedUser &&
-                              toggle.mutate({
-                                userId: selectedUser.id,
-                                permisoId: p.id,
-                                enable: !p.selected,
-                                moduleId, // ⬅️ IMPORTANTE
-                              })
-                            }
+                            onToggle={() => {
+                              if (!selectedUser) return;
+                              const v = !p.selected;
+                              const modulo = getModuleLabelFromMap(moduleId, moduleMap);
+                              ask({
+                                title: v ? "¿Activar este permiso?" : "¿Desactivar este permiso?",
+                                message: `Usuario: ${selectedUser.nombre}\nMódulo: ${modulo}\nPermiso: ${buildPermisoLabel(
+                                  p
+                                )}`,
+                                confirmText: v ? "Activar" : "Desactivar",
+                                onConfirm: () =>
+                                  toggle.mutate({
+                                    userId: selectedUser.id,
+                                    permisoId: p.id,
+                                    enable: v,
+                                    moduleId,
+                                  }),
+                              });
+                            }}
                           />
                         </TableCell>
                         <TableCell>
@@ -200,15 +300,24 @@ export default function PermisosPorUsuario() {
                             <Switch
                               color="success"
                               isSelected={!!p.selected}
-                              onValueChange={(v) =>
-                                selectedUser &&
-                                toggle.mutate({
-                                  userId: selectedUser.id,
-                                  permisoId: p.id,
-                                  enable: v,
-                                  moduleId, // ⬅️ IMPORTANTE
-                                })
-                              }
+                              onValueChange={(v) => {
+                                if (!selectedUser) return;
+                                const modulo = getModuleLabelFromMap(moduleId, moduleMap);
+                                ask({
+                                  title: v ? "¿Activar este permiso?" : "¿Desactivar este permiso?",
+                                  message: `Usuario: ${selectedUser.nombre}\nMódulo: ${modulo}\nPermiso: ${buildPermisoLabel(
+                                    p
+                                  )}`,
+                                  confirmText: v ? "Activar" : "Desactivar",
+                                  onConfirm: () =>
+                                    toggle.mutate({
+                                      userId: selectedUser.id,
+                                      permisoId: p.id,
+                                      enable: v,
+                                      moduleId,
+                                    }),
+                                });
+                              }}
                             />
                           </div>
                         </TableCell>
@@ -227,6 +336,9 @@ export default function PermisosPorUsuario() {
           </div>
         </div>
       </Surface>
+
+      {/* Diálogo global de confirmación */}
+      <ConfirmDialog state={confirm} setState={setConfirm} isBusy={anyBusy} />
     </div>
   );
 }

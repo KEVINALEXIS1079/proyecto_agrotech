@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlmacenesService } from './services/almacenes.service';
 import { AlmacenesController } from './controllers/almacenes.controller';
 import { Almacen } from './entities/almacen.entity';
-import { AlmacenesGateway } from './gateways/almacen.gateway';
+import { AlmacenesGateway } from './gateways/almacenes.gateway';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Almacen])],

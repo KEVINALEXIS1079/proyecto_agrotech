@@ -193,8 +193,6 @@ export default function Sidebar({
             setOpenIot((v) => !v);
           }}
           childrenLinks={[
-            { to: "/iot-registrar", label: "Registrar Sensor" },
-            { to: "/tipo-sensor", label: "Tipo Sensor" },
           ]}
         />
 

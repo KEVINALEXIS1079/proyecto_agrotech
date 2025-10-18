@@ -1,4 +1,3 @@
-// src/modules/iot/TipoSensor/ui/TipoSensorModalForm.tsx
 import React from "react";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { TipoSensorForm } from "./TipoSensorForm";
@@ -12,7 +11,6 @@ interface Props {
 
 export const TipoSensorModalForm: React.FC<Props> = ({ open, onClose, tipoSensor }) => {
   return (
-    // MEJORA: Transiciones para el fondo y el panel del modal
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out ${
         open ? "bg-black/60 opacity-100" : "bg-transparent opacity-0 pointer-events-none"

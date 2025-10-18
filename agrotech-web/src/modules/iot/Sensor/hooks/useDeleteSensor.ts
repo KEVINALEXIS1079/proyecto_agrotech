@@ -9,8 +9,8 @@ export function useDeleteSensor() {
     setLoading(true);
     setError(null);
     try {
+      // El servicio ahora emite el evento internamente tras eliminar
       await sensorService.remove(id);
-      sensorService.emit("sensores:remove", { id }); // WebSocket
       return true;
     } catch (err: any) {
       setError(err.message);

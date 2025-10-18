@@ -7,11 +7,13 @@ export default function CrearPageIot() {
   const { setTitle } = useOutletContext<LayoutContext>();
   const navigate = useNavigate();
 
-  useEffect(() => setTitle("Registrar IoT"), [setTitle]);
+  useEffect(() => setTitle("Registrar Sensor"), [setTitle]);
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100 overflow-y-scroll h-[calc(100vh-10rem)]">
-      <SensorForm onSuccess={() => setTimeout(() => navigate("/iot"), 1200)} />
+    <div className="h-[calc(100vh-120px)] overflow-y-auto pr-4">
+      <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+        <SensorForm onSuccess={() => setTimeout(() => navigate("/iot"), 1200)} />
+      </div>
     </div>
   );
 }

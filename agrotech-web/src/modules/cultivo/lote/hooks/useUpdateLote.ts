@@ -11,7 +11,7 @@ export function useUpdateLote() {
     setError(null);
     try {
       const data = await loteService.updateLote(id, payload);
-      loteService.emit("lotes:update", { id, dto: payload }); // WebSocket
+      // ❌ No emitir nada, el backend ya lo hace automáticamente
       return data;
     } catch (err: any) {
       setError(err.message);

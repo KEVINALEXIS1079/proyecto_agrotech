@@ -15,7 +15,7 @@ import {
   restaurarRol,
   permisoService,
   listPermisoModules,
-} from "../api/permisoService";
+} from "../api/permiso.service";
 
 /* ======================
  * Query Keys

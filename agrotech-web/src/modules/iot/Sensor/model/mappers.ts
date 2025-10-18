@@ -26,6 +26,8 @@ export function mapSensorFromApi(data: any): Sensor {
       nombre_tipo_sensor: data.tipo_sensor?.nombre_tipo_sensor ?? "",
       delete_at: data.tipo_sensor?.delete_at ?? null,
     },
+    imagen_sensor: data.imagen_sensor ?? null,
+    activo: data.activo ?? false,
     delete_at: data.delete_at ?? null,
   };
 }

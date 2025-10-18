@@ -1,1 +1,1 @@
-export * as iotApi from './api'; export * as iotModel from './model/types';
+export * as iotApi from './api/sensor.service'; export * as iotModel from './model/types';

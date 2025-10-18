@@ -6,62 +6,58 @@ import type { Socket } from "socket.io-client";
 class SubloteService {
   private socket: Socket | null = null;
 
-  // ----------------------
-  // CRUD REST
-  // ----------------------
-  async list(): Promise<Sublote[]> {
+  // CRUD REST con emisión de eventos
+  async listSublotes(): Promise<Sublote[]> {
     const { data } = await api.get("/sublotes");
     return Array.isArray(data) ? data.map(mapSubloteFromApi) : [];
   }
 
-  async getById(id: number): Promise<Sublote> {
+  async getSubloteById(id: number): Promise<Sublote> {
     const { data } = await api.get(`/sublotes/${id}`);
     return mapSubloteFromApi(data);
   }
 
-  async create(payload: CreateSubloteDTO): Promise<Sublote> {
-    const apiPayload = mapSubloteToApi(payload);
-    const { data } = await api.post("/sublotes", apiPayload);
-    return mapSubloteFromApi(data);
+  async createSublote(payload: CreateSubloteDTO): Promise<Sublote> {
+    const { data } = await api.post("/sublotes", mapSubloteToApi(payload));
+    const sublote = mapSubloteFromApi(data);
+    // Emitir evento WebSocket para todos los clientes conectados
+    this.emit("sublotes:created", sublote);
+    return sublote;
   }
 
-  async update(id: number, payload: CreateSubloteDTO): Promise<Sublote> {
-    const apiPayload = mapSubloteToApi(payload);
-    const { data } = await api.patch(`/sublotes/${id}`, apiPayload);
-    return mapSubloteFromApi(data);
+  async updateSublote(id: number, payload: CreateSubloteDTO): Promise<Sublote> {
+    const { data } = await api.patch(`/sublotes/${id}`, mapSubloteToApi(payload));
+    const sublote = mapSubloteFromApi(data);
+    // Emitir evento WebSocket
+    this.emit("sublotes:updated", sublote);
+    return sublote;
   }
 
-  async remove(id: number): Promise<boolean> {
+  async removeSublote(id: number): Promise<boolean> {
     await api.delete(`/sublotes/${id}`);
+    // Emitir evento WebSocket indicando eliminación
+    this.emit("sublotes:removed", { id_sublote_pk: id });
     return true;
   }
 
-  // ----------------------
+  async restoreSublote(id: number): Promise<Sublote> {
+    const { data } = await api.patch(`/sublotes/restore/${id}`);
+    const sublote = mapSubloteFromApi(data);
+    this.emit("sublotes:restored", sublote);
+    return sublote;
+  }
+
   // WebSocket
-  // ----------------------
   connect(): Socket {
     if (!this.socket || this.socket.disconnected) {
-      this.socket = connectSocket();
-
-      this.socket.on("connect", () => {
-        console.log("✅ Socket conectado:", this.socket?.id);
-      });
-
-      this.socket.on("connect_error", (err) => {
-        console.warn("⚠️ Error de conexión del socket:", err.message);
-      });
-
-      this.socket.on("disconnect", (reason) => {
-        console.log("🔌 Socket desconectado:", reason);
-      });
+      this.socket = connectSocket("/sublotes");
     }
-
     return this.socket;
   }
 
   on(event: string, callback: (...args: any[]) => void) {
     const socket = this.connect();
-    socket.off(event); // Evita duplicar listeners
+    socket.off(event);
     socket.on(event, callback);
   }
 
@@ -69,17 +65,12 @@ class SubloteService {
     const socket = this.connect();
     if (socket.connected) {
       socket.emit(event, payload);
-    } else {
-      console.warn(`⚠️ No se pudo emitir ${event}, socket no conectado.`);
     }
   }
 
   disconnect() {
     if (this.socket) {
-      if (this.socket.connected) {
-        this.socket.disconnect();
-        console.log("🧹 Socket cerrado correctamente.");
-      }
+      this.socket.disconnect();
       this.socket = null;
     }
   }

@@ -5,9 +5,9 @@ export type CalloutKind = "error" | "info" | "default";
 export type CalloutPos = [number, number];
 
 export interface Callout {
-  pos: CalloutPos;
-  text: string;
-  kind: CalloutKind;
+ pos: CalloutPos;
+ text: string;
+ kind: CalloutKind;
 }
 
 const DEFAULT_TIMEOUT = 3000;

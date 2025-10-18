@@ -10,7 +10,7 @@ export function useUpdateSublote() {
     setLoading(true);
     setError(null);
     try {
-      const data = await subloteService.update(id, payload);
+      const data = await subloteService.updateSublote(id, payload);
       subloteService.emit("sublotes:update", { id, dto: payload }); // WebSocket
       return data;
     } catch (err: any) {

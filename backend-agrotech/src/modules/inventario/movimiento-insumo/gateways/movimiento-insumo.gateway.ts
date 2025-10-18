@@ -4,128 +4,80 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { MovimientoInsumoService } from '../services/movimiento-insumo.service';
 import { CreateMovimientoInsumoDto } from '../dto/create-movimiento-insumo.dto';
 import { UpdateMovimientoInsumoDto } from '../dto/update-movimiento-insumo.dto';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { RolesGuard } from 'src/common/guard/roles.guard';
-import { Roles } from 'src/common/decorator/roles.decorator';
 
-/**
- * Gateway para manejar la comunicación en tiempo real
- * del módulo Movimiento de Insumos.
- * Los clientes se conectan al namespace 'movimiento-insumo'
- * y pueden enviar o escuchar eventos de tipo CRUD.
- */
 @WebSocketGateway({
+  cors: { origin: '*' },
   namespace: '/movimiento-insumo',
-  cors: {
-    origin: '*',
-  },
 })
-export class MovimientoInsumoGateway {
+export class MovimientoInsumoGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly movimientosService: MovimientoInsumoService) {}
 
-  /**
-   * Crear un nuevo movimiento de insumo.
-   * Evento: "movimiento:create"
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrador', 'Instructor', 'Pasante')
-  @SubscribeMessage('movimiento:create')
+  // Verificar conexiones
+  handleConnection(client: Socket) {}
+
+  handleDisconnect(client: Socket) {}
+
+  // Crear movimiento de insumo
+  @SubscribeMessage('movimiento-insumo:create')
   async create(
     @MessageBody() dto: CreateMovimientoInsumoDto,
     @ConnectedSocket() client: Socket,
   ) {
-    const nuevo = await this.movimientosService.create(dto);
-    // Emitir evento global con el nuevo movimiento
-    this.server.emit('movimiento:created', nuevo);
-    return { event: 'movimiento:created', data: nuevo };
+    const result = await this.movimientosService.create(dto);
+    this.server.emit('movimiento-insumo:created', result);
+    return result;
   }
 
-  /**
-   * Obtener todos los movimientos de insumo.
-   * Evento: "movimiento:findAll"
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrador', 'Instructor', 'Pasante')
-  @SubscribeMessage('movimiento:findAll')
-  async findAll() {
-    const movimientos = await this.movimientosService.findAll();
-    return { event: 'movimiento:list', data: movimientos };
+  // Obtener todos los movimientos de insumo
+  @SubscribeMessage('movimiento-insumo:findAll')
+  async findAll(@ConnectedSocket() client: Socket) {
+    const result = await this.movimientosService.findAll();
+    client.emit('movimiento-insumo:list', result);
+    return result;
   }
 
-  /**
-   * Obtener un movimiento de insumo por ID.
-   * Evento: "movimiento:findOne"
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrador', 'Instructor', 'Pasante')
-  @SubscribeMessage('movimiento:findOne')
-  async findOne(@MessageBody('id') id: number) {
-    const movimiento = await this.movimientosService.findOne(id);
-    return { event: 'movimiento:detail', data: movimiento };
-  }
-
-  /**
-   * Actualizar un movimiento de insumo.
-   * Evento: "movimiento:update"
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrador', 'Instructor', 'Pasante')
-  @SubscribeMessage('movimiento:update')
-  async update(
-    @MessageBody('id') id: number,
-    @MessageBody('data') dto: UpdateMovimientoInsumoDto,
+  // Obtener un movimiento de insumo
+  @SubscribeMessage('movimiento-insumo:findOne')
+  async findOne(
+    @MessageBody('id_movimiento_insumo_pk') id_movimiento_insumo_pk: number,
+    @ConnectedSocket() client: Socket,
   ) {
-    const actualizado = await this.movimientosService.update(id, dto);
-    this.server.emit('movimiento:updated', actualizado);
-    return { event: 'movimiento:updated', data: actualizado };
+    const result = await this.movimientosService.findOne(id_movimiento_insumo_pk);
+    client.emit('movimiento-insumo:detail', result);
+    return result;
   }
 
-  /**
-   * Eliminar un movimiento de insumo.
-   * Evento: "movimiento:remove"
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrador', 'Instructor')
-  @SubscribeMessage('movimiento:remove')
-  async remove(@MessageBody('id') id: number) {
-    const eliminado = await this.movimientosService.remove(id);
-    this.server.emit('movimiento:removed', { id });
-    return { event: 'movimiento:removed', data: eliminado };
+  // Actualizar movimiento de insumo
+  @SubscribeMessage('movimiento-insumo:update')
+  async update(@MessageBody() data: { id_movimiento_insumo_pk: number; dto: UpdateMovimientoInsumoDto }) {
+    const result = await this.movimientosService.update(data.id_movimiento_insumo_pk, data.dto);
+    this.server.emit('movimiento-insumo:updated', result);
+    return result;
   }
 
-  /**
-   * Restaurar un movimiento de insumo eliminado.
-   * Evento: "movimiento:restore"
-   */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrador', 'Instructor')
-  @SubscribeMessage('movimiento:restore')
-  async restore(@MessageBody('id') id: number) {
-    const restaurado = await this.movimientosService.restore(id);
-    this.server.emit('movimiento:restored', restaurado);
-    return { event: 'movimiento:restored', data: restaurado };
+  // Eliminar movimiento de insumo
+  @SubscribeMessage('movimiento-insumo:remove')
+  async remove(@MessageBody('id_movimiento_insumo_pk') id_movimiento_insumo_pk: number) {
+    const result = await this.movimientosService.remove(id_movimiento_insumo_pk);
+    this.server.emit('movimiento-insumo:removed', { id_movimiento_insumo_pk });
+    return result;
   }
 
-  /**
-   * Evento opcional para detectar nuevas conexiones.
-   */
-  handleConnection(client: Socket) {
-    console.log(`Cliente conectado: ${client.id}`);
-  }
-
-  /**
-   * Evento opcional para detectar desconexiones.
-   */
-  handleDisconnect(client: Socket) {
-    console.log(`Cliente desconectado: ${client.id}`);
+  // Restaurar movimiento de insumo
+  @SubscribeMessage('movimiento-insumo:restore')
+  async restore(@MessageBody('id_movimiento_insumo_pk') id_movimiento_insumo_pk: number) {
+    const result = await this.movimientosService.restore(id_movimiento_insumo_pk);
+    this.server.emit('movimiento-insumo:restored', result);
+    return result;
   }
 }

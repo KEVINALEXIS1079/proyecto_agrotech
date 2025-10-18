@@ -4,30 +4,31 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseGuards } from '@nestjs/common';
 import { EvidenciasService } from '../services/evidencias.service';
 import { CreateEvidenciaDto } from '../dto/create-evidencia.dto';
 import { UpdateEvidenciaDto } from '../dto/update-evidencia.dto';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
 @WebSocketGateway({
   cors: { origin: '*' },
-  namespace: 'evidencias',
+  namespace: '/evidencias',
 })
-export class EvidenciasGateway {
+export class EvidenciasGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly evidenciasService: EvidenciasService) {}
 
+  // Verificar conexiones
+  handleConnection(client: Socket) {}
+
+  handleDisconnect(client: Socket) {}
+
   // Crear evidencia
   @SubscribeMessage('evidencias:create')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:evidencias:create')
   async create(
     @MessageBody() dto: CreateEvidenciaDto,
     @ConnectedSocket() client: Socket,
@@ -39,62 +40,43 @@ export class EvidenciasGateway {
 
   // Obtener todas las evidencias
   @SubscribeMessage('evidencias:findAll')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:evidencias:read')
   async findAll(@ConnectedSocket() client: Socket) {
     const result = await this.evidenciasService.findAll();
     client.emit('evidencias:list', result);
     return result;
   }
 
-  // Obtener evidencia por ID
+  // Obtener una evidencia
   @SubscribeMessage('evidencias:findOne')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:evidencias:read')
   async findOne(
-    @MessageBody('id') id: number,
+    @MessageBody('id_evidencia_pk') id_evidencia_pk: number,
     @ConnectedSocket() client: Socket,
   ) {
-    const result = await this.evidenciasService.findOne(id);
+    const result = await this.evidenciasService.findOne(id_evidencia_pk);
     client.emit('evidencias:detail', result);
     return result;
   }
 
   // Actualizar evidencia
   @SubscribeMessage('evidencias:update')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:evidencias:update')
-  async update(
-    @MessageBody() data: { id: number; dto: UpdateEvidenciaDto },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const result = await this.evidenciasService.update(data.id, data.dto);
+  async update(@MessageBody() data: { id_evidencia_pk: number; dto: UpdateEvidenciaDto }) {
+    const result = await this.evidenciasService.update(data.id_evidencia_pk, data.dto);
     this.server.emit('evidencias:updated', result);
     return result;
   }
 
   // Eliminar evidencia
   @SubscribeMessage('evidencias:remove')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:evidencias:delete')
-  async remove(
-    @MessageBody('id') id: number,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const result = await this.evidenciasService.remove(id);
-    this.server.emit('evidencias:removed', result);
+  async remove(@MessageBody('id_evidencia_pk') id_evidencia_pk: number) {
+    const result = await this.evidenciasService.remove(id_evidencia_pk);
+    this.server.emit('evidencias:removed', { id_evidencia_pk });
     return result;
   }
 
   // Restaurar evidencia
   @SubscribeMessage('evidencias:restore')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:evidencias:update')
-  async restore(
-    @MessageBody('id') id: number,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const result = await this.evidenciasService.restore(id);
+  async restore(@MessageBody('id_evidencia_pk') id_evidencia_pk: number) {
+    const result = await this.evidenciasService.restore(id_evidencia_pk);
     this.server.emit('evidencias:restored', result);
     return result;
   }

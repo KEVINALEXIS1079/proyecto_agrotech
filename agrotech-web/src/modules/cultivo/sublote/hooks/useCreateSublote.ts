@@ -10,7 +10,7 @@ export function useCreateSublote() {
     setLoading(true);
     setError(null);
     try {
-      const data = await subloteService.create(payload);
+      const data = await subloteService.createSublote(payload);
       subloteService.emit("sublotes:create", payload); // notificar por WebSocket
       return data;
     } catch (err: any) {

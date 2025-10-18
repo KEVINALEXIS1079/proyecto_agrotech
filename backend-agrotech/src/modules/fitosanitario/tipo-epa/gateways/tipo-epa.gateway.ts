@@ -4,85 +4,80 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { TipoEpaService } from '../services/tipo-epa.service';
 import { CreateTipoEpaDto } from '../dto/create-tipo-epa.dto';
 import { UpdateTipoEpaDto } from '../dto/update-tipo-epa.dto';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
 @WebSocketGateway({
-  namespace: '/tipo-epa',
   cors: { origin: '*' },
+  namespace: '/tipo-epa', // IMPORTANTE: con barra inicial
 })
-export class TipoEpaGateway {
+export class TipoEpaGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly tipoEpaService: TipoEpaService) {}
 
+  // Verificar conexiones
+  handleConnection(client: Socket) {}
+
+  handleDisconnect(client: Socket) {}
+
   // Crear tipo de EPA
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-epa:create')
   @SubscribeMessage('tipo-epa:create')
   async create(
     @MessageBody() dto: CreateTipoEpaDto,
     @ConnectedSocket() client: Socket,
   ) {
-    const created = await this.tipoEpaService.create(dto);
-    this.server.emit('tipo-epa:created', created);
-    return created;
+    const result = await this.tipoEpaService.create(dto);
+    this.server.emit('tipo-epa:created', result);
+    return result;
   }
 
   // Obtener todos los tipos de EPA
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('fitosanitario:tipo-epa:read')
   @SubscribeMessage('tipo-epa:findAll')
-  async findAll() {
-    return this.tipoEpaService.findAll();
+  async findAll(@ConnectedSocket() client: Socket) {
+    const result = await this.tipoEpaService.findAll();
+    client.emit('tipo-epa:list', result);
+    return result;
   }
 
-  // Obtener tipo de EPA por ID
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('fitosanitario:tipo-epa:read')
+  // Obtener un tipo de EPA
   @SubscribeMessage('tipo-epa:findOne')
-  async findOne(@MessageBody() id: number) {
-    return this.tipoEpaService.findOne(id);
+  async findOne(
+    @MessageBody('id_tipo_epa_pk') id_tipo_epa_pk: number,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const result = await this.tipoEpaService.findOne(id_tipo_epa_pk);
+    client.emit('tipo-epa:detail', result);
+    return result;
   }
 
   // Actualizar tipo de EPA
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-epa:update')
   @SubscribeMessage('tipo-epa:update')
-  async update(
-    @MessageBody() data: { id: number; dto: UpdateTipoEpaDto },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const updated = await this.tipoEpaService.update(data.id, data.dto);
-    this.server.emit('tipo-epa:updated', updated);
-    return updated;
+  async update(@MessageBody() data: { id_tipo_epa_pk: number; dto: UpdateTipoEpaDto }) {
+    const result = await this.tipoEpaService.update(data.id_tipo_epa_pk, data.dto);
+    this.server.emit('tipo-epa:updated', result);
+    return result;
   }
 
   // Eliminar tipo de EPA
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-epa:delete')
   @SubscribeMessage('tipo-epa:remove')
-  async remove(@MessageBody() id: number, @ConnectedSocket() client: Socket) {
-    const result = await this.tipoEpaService.remove(id);
-    this.server.emit('tipo-epa:removed', { id });
+  async remove(@MessageBody('id_tipo_epa_pk') id_tipo_epa_pk: number) {
+    const result = await this.tipoEpaService.remove(id_tipo_epa_pk);
+    this.server.emit('tipo-epa:removed', { id_tipo_epa_pk });
     return result;
   }
 
   // Restaurar tipo de EPA
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-epa:update')
   @SubscribeMessage('tipo-epa:restore')
-  async restore(@MessageBody() id: number, @ConnectedSocket() client: Socket) {
-    const restored = await this.tipoEpaService.restore(id);
-    this.server.emit('tipo-epa:restored', restored);
-    return restored;
+  async restore(@MessageBody('id_tipo_epa_pk') id_tipo_epa_pk: number) {
+    const result = await this.tipoEpaService.restore(id_tipo_epa_pk);
+    this.server.emit('tipo-epa:restored', result);
+    return result;
   }
 }

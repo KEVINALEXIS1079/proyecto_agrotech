@@ -10,11 +10,11 @@ export function useSubloteList() {
   const fetchSublotes = async () => {
     try {
       setLoading(true);
-      const data = await subloteService.list();
+      const data = await subloteService.listSublotes();
       setSublotes(data);
       setError(null);
     } catch (err: any) {
-      console.error("❌ Error al listar sublotes:", err);
+      console.error(" Error al listar sublotes:", err);
       setError(err.message || "Error al obtener los sublotes");
     } finally {
       setLoading(false);
@@ -23,6 +23,37 @@ export function useSubloteList() {
 
   useEffect(() => {
     fetchSublotes();
+
+    // Conectar socket
+    const socket = subloteService.connect();
+
+    // Eventos de tiempo real
+    socket.on("sublotes:created", (sublote: Sublote) => {
+      setSublotes(prev => [...prev, sublote]);
+    });
+
+    socket.on("sublotes:updated", (updated: Sublote) => {
+      setSublotes(prev =>
+        prev.map(s => (s.id_sublote_pk === updated.id_sublote_pk ? updated : s))
+      );
+    });
+
+    socket.on("sublotes:removed", ({ id_sublote_pk }: { id_sublote_pk: number }) => {
+      setSublotes(prev => prev.filter(s => s.id_sublote_pk !== id_sublote_pk));
+    });
+
+    socket.on("sublotes:restored", (restored: Sublote) => {
+      setSublotes(prev => [...prev, restored]);
+    });
+
+    // Limpiar al desmontar
+    return () => {
+      socket.off("sublotes:created");
+      socket.off("sublotes:updated");
+      socket.off("sublotes:removed");
+      socket.off("sublotes:restored");
+      subloteService.disconnect();
+    };
   }, []);
 
   return { sublotes, loading, error, refresh: fetchSublotes };

@@ -9,7 +9,7 @@ export function useDeleteSublote() {
     setLoading(true);
     setError(null);
     try {
-      await subloteService.remove(id);
+      await subloteService.removeSublote(id);
       subloteService.emit("sublotes:remove", { id }); // WebSocket
       return true;
     } catch (err: any) {

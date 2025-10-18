@@ -1,7 +1,7 @@
 // src/modules/perfil/hooks/usePerfil.ts
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getPerfil, savePerfil, perfilService } from "../api/perfilService";
+import { getPerfil, savePerfil, perfilService } from "../api/perfil.service";
 import type { Perfil, UpdatePerfilInput } from "../model/types";
 
 const qk = { me: () => ["perfil", "me"] as const };

@@ -6,12 +6,16 @@ export function useUpdateSensor() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const updateSensor = async (id: number, payload: SensorDTO): Promise<Sensor | null> => {
+  const updateSensor = async (
+    id: number,
+    payload: Partial<SensorDTO>,
+    imagen?: File
+  ): Promise<Sensor | null> => {
     setLoading(true);
     setError(null);
     try {
-      const data = await sensorService.update(id, payload);
-      sensorService.emit("sensores:update", { id, dto: payload }); // WebSocket
+      // El servicio ahora emite el evento internamente tras actualizar
+      const data = await sensorService.update(id, payload, imagen);
       return data;
     } catch (err: any) {
       setError(err.message);

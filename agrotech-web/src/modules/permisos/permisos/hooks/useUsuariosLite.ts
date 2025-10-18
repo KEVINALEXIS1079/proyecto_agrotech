@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listUsuarios,
   usuarioService,
-} from "#/modules/usuarios/usuarios/api/usuarioService";
+} from "@/modules/usuarios/usuarios/api/usuario.service";
 
 /** Normaliza y ordena los params para que la queryKey sea estable */
 function normalizeParams(params?: {

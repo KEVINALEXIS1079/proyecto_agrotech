@@ -1,1 +1,0 @@
-export default function EditarPage(){return <div className='p-6'>iot Editar</div>}

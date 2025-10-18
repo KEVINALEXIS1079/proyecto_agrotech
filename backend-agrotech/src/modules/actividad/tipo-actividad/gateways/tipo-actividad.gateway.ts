@@ -4,97 +4,79 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseGuards } from '@nestjs/common';
 import { TipoActividadService } from '../services/tipo-actividad.service';
 import { CreateTipoActividadDto } from '../dto/create-tipo-actividad.dto';
 import { UpdateTipoActividadDto } from '../dto/update-tipo-actividad.dto';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
 @WebSocketGateway({
   cors: { origin: '*' },
-  namespace: 'tipo-actividad', // organiza eventos por módulo
+  namespace: '/tipo-actividad',
 })
-export class TipoActividadGateway {
+export class TipoActividadGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly tipoActividadService: TipoActividadService) {}
 
+  // Verificar conexiones
+  handleConnection(client: Socket) {}
+
+  handleDisconnect(client: Socket) {}
+
   // Crear tipo de actividad
   @SubscribeMessage('tipo-actividad:create')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-actividad:create')
   async create(
     @MessageBody() dto: CreateTipoActividadDto,
     @ConnectedSocket() client: Socket,
   ) {
     const result = await this.tipoActividadService.create(dto);
-    this.server.emit('tipo-actividad:created', result); // emitir a todos
+    this.server.emit('tipo-actividad:created', result);
     return result;
   }
 
   // Obtener todos los tipos de actividad
   @SubscribeMessage('tipo-actividad:findAll')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-actividad:read')
   async findAll(@ConnectedSocket() client: Socket) {
     const result = await this.tipoActividadService.findAll();
-    client.emit('tipo-actividad:list', result); // solo al cliente que lo pidió
+    client.emit('tipo-actividad:list', result);
     return result;
   }
 
-  // Obtener un tipo de actividad por ID
+  // Obtener un tipo de actividad
   @SubscribeMessage('tipo-actividad:findOne')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-actividad:read')
   async findOne(
-    @MessageBody('id') id: number,
+    @MessageBody('id_tipo_actividad_pk') id_tipo_actividad_pk: number,
     @ConnectedSocket() client: Socket,
   ) {
-    const result = await this.tipoActividadService.findOne(id);
+    const result = await this.tipoActividadService.findOne(id_tipo_actividad_pk);
     client.emit('tipo-actividad:detail', result);
     return result;
   }
 
   // Actualizar tipo de actividad
   @SubscribeMessage('tipo-actividad:update')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-actividad:update')
-  async update(
-    @MessageBody() data: { id: number; dto: UpdateTipoActividadDto },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const result = await this.tipoActividadService.update(data.id, data.dto);
-    this.server.emit('tipo-actividad:updated', result); // a todos
+  async update(@MessageBody() data: { id_tipo_actividad_pk: number; dto: UpdateTipoActividadDto }) {
+    const result = await this.tipoActividadService.update(data.id_tipo_actividad_pk, data.dto);
+    this.server.emit('tipo-actividad:updated', result);
     return result;
   }
 
   // Eliminar tipo de actividad
   @SubscribeMessage('tipo-actividad:remove')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-actividad:delete')
-  async remove(
-    @MessageBody('id') id: number,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const result = await this.tipoActividadService.remove(id);
-    this.server.emit('tipo-actividad:removed', result);
+  async remove(@MessageBody('id_tipo_actividad_pk') id_tipo_actividad_pk: number) {
+    const result = await this.tipoActividadService.remove(id_tipo_actividad_pk);
+    this.server.emit('tipo-actividad:removed', { id_tipo_actividad_pk });
     return result;
   }
 
   // Restaurar tipo de actividad
   @SubscribeMessage('tipo-actividad:restore')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('actividad:tipo-actividad:update')
-  async restore(
-    @MessageBody('id') id: number,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const result = await this.tipoActividadService.restore(id);
+  async restore(@MessageBody('id_tipo_actividad_pk') id_tipo_actividad_pk: number) {
+    const result = await this.tipoActividadService.restore(id_tipo_actividad_pk);
     this.server.emit('tipo-actividad:restored', result);
     return result;
   }

@@ -9,7 +9,7 @@ export class UploadService {
     return {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          // ✅ Si el usuario aún no está disponible (antes del guard JWT)
+          //  Si el usuario aún no está disponible (antes del guard JWT)
           // usa solo la carpeta principal del módulo
           const username =
             (req.user && req.user.username) ||

@@ -6,19 +6,18 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, UsePipes, ValidationPipe, BadRequestException } from '@nestjs/common';
 import { SensoresService } from '../services/sensores.service';
 import { CreateSensorDto } from '../dto/create-sensor.dto';
 import { UpdateSensorDto } from '../dto/update-sensor.dto';
 import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
 import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
 @WebSocketGateway({
   cors: {
     origin: '*',
   },
-  namespace: 'sensores', // opcional, pero útil para organización
+  namespace: 'sensores',
 })
 export class SensoresGateway {
   @WebSocketServer()
@@ -26,77 +25,98 @@ export class SensoresGateway {
 
   constructor(private readonly sensoresService: SensoresService) {}
 
-  //  Crear
+  // =========================
+  // Crear sensor
+  // =========================
   @SubscribeMessage('sensores:create')
   @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:sensores:create')
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async create(
     @MessageBody() dto: CreateSensorDto,
     @ConnectedSocket() client: Socket,
   ) {
     const result = await this.sensoresService.create(dto);
-    // Emitir a todos los clientes conectados
     this.server.emit('sensores:created', result);
     return result;
   }
 
-  //  Obtener todos
+  // =========================
+  // Obtener todos los sensores
+  // =========================
   @SubscribeMessage('sensores:findAll')
   @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:sensores:read')
   async findAll(@ConnectedSocket() client: Socket) {
     const result = await this.sensoresService.findAll();
     client.emit('sensores:list', result);
     return result;
   }
 
-  //  Obtener uno
+  // =========================
+  // Obtener un sensor por ID
+  // =========================
   @SubscribeMessage('sensores:findOne')
   @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:sensores:read')
   async findOne(
     @MessageBody('id') id: number,
     @ConnectedSocket() client: Socket,
   ) {
+    if (!id) throw new BadRequestException('El id del sensor es obligatorio');
     const result = await this.sensoresService.findOne(id);
     client.emit('sensores:detail', result);
     return result;
   }
 
-  //  Actualizar
+  // =========================
+  // Actualizar sensor
+  // =========================
   @SubscribeMessage('sensores:update')
   @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:sensores:update')
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async update(
-    @MessageBody() data: { id: number; dto: UpdateSensorDto },
+    @MessageBody() data: { id: number } & Partial<UpdateSensorDto>,
     @ConnectedSocket() client: Socket,
   ) {
-    const result = await this.sensoresService.update(data.id, data.dto);
+    if (!data || !data.id) {
+      throw new BadRequestException('El id del sensor es obligatorio');
+    }
+
+    // Extraemos id y dto
+    const { id, ...dto } = data;
+
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException('Se requiere al menos un campo para actualizar');
+    }
+
+    const result = await this.sensoresService.update(id, dto);
     this.server.emit('sensores:updated', result);
     return result;
   }
 
-  //  Eliminar
+  // =========================
+  // Eliminar sensor
+  // =========================
   @SubscribeMessage('sensores:remove')
   @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:sensores:delete')
   async remove(
     @MessageBody('id') id: number,
     @ConnectedSocket() client: Socket,
   ) {
+    if (!id) throw new BadRequestException('El id del sensor es obligatorio');
     const result = await this.sensoresService.remove(id);
     this.server.emit('sensores:removed', result);
     return result;
   }
 
-  //  Restaurar
+  // =========================
+  // Restaurar sensor
+  // =========================
   @SubscribeMessage('sensores:restore')
   @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:sensores:update')
   async restore(
     @MessageBody('id') id: number,
     @ConnectedSocket() client: Socket,
   ) {
+    if (!id) throw new BadRequestException('El id del sensor es obligatorio');
     const result = await this.sensoresService.restore(id);
     this.server.emit('sensores:restored', result);
     return result;

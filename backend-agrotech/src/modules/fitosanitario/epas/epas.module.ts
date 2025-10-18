@@ -5,7 +5,7 @@ import { EpasController } from './controllers/epas.controller';
 import { Epa } from './entities/epa.entity';
 import { TipoEpa } from 'src/modules/fitosanitario/tipo-epa/entities/tipo-epa.entity';
 import { Cultivo } from 'src/modules/cultivo/cultivos/entities/cultivo.entity';
-import { EpasGateway } from './gateways/epa.gateway';
+import { EpasGateway } from './gateways/epas.gateway';
 
 @Module({
   imports: [

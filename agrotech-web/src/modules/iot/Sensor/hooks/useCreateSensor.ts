@@ -1,25 +1,24 @@
 import { useState } from "react";
 import { sensorService } from "../api/sensor.service";
-import type { SensorDTO, Sensor } from "../model/types";
+import type { Sensor, SensorDTO } from "../model/types";
+import { toast } from "react-toastify";
 
 export function useCreateSensor() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const createSensor = async (payload: SensorDTO): Promise<Sensor | null> => {
-    setLoading(true);
-    setError(null);
+  const createSensor = async (data: SensorDTO, file?: File): Promise<Sensor | null> => {
     try {
-      const data = await sensorService.create(payload);
-      sensorService.emit("sensores:create", payload); // notificar por WebSocket
-      return data;
-    } catch (err: any) {
-      setError(err.message);
+      setLoading(true);
+      const result = await sensorService.create(data, file);
+      return result;
+    } catch (error) {
+      console.error("Error al crear sensor:", error);
+      toast.error("Error al crear sensor");
       return null;
     } finally {
       setLoading(false);
     }
   };
 
-  return { createSensor, loading, error };
+  return { createSensor, loading };
 }
