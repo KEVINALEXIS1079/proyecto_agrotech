@@ -18,7 +18,7 @@ import { UsuariosModule } from '../modules/usuario/usuarios/usuarios.module';
 import { RolesModule } from '../modules/usuario/roles/roles.module';
 import { ProveedoresModule } from '../modules/inventario/proveedores/proveedores.module';
 import { InsumosModule } from '../modules/inventario/insumos/insumos.module';
-import { AlmacenModule } from '../modules/inventario/almacenes/almacenes.module';
+import { AlmacenesModule  } from '../modules/inventario/almacenes/almacenes.module';
 import { CategoriasModule } from '../modules/inventario/categorias/categorias.module';
 import { EpasModule } from '../modules/fitosanitario/epas/epas.module';
 import { TiposEpasModule } from '../modules/fitosanitario/tipo-epa/tipo-epa.module';
@@ -78,7 +78,7 @@ import { PermisoModule } from 'src/modules/permiso-module/entities/permiso-modul
     RolesModule,
     ProveedoresModule,
     InsumosModule,
-    AlmacenModule,
+    AlmacenesModule ,
     CategoriasModule,
     EpasModule,
     TiposEpasModule,

@@ -1,3 +1,4 @@
+// src/modules/inventario/proveedores/gateways/proveedor.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -22,23 +23,16 @@ export class ProveedoresGateway implements OnGatewayConnection, OnGatewayDisconn
 
   constructor(private readonly proveedoresService: ProveedoresService) {}
 
-  // Verificar conexiones
-  handleConnection(client: Socket) {}
+  handleConnection(_client: Socket) {}
+  handleDisconnect(_client: Socket) {}
 
-  handleDisconnect(client: Socket) {}
-
-  // Crear proveedor
   @SubscribeMessage('proveedores:create')
-  async create(
-    @MessageBody() dto: CreateProveedorDto,
-    @ConnectedSocket() client: Socket,
-  ) {
+  async create(@MessageBody() dto: CreateProveedorDto) {
     const result = await this.proveedoresService.create(dto);
-    this.server.emit('proveedores:created', result);
+    this.server.emit('proveedores:created', result.data);
     return result;
   }
 
-  // Obtener todos los proveedores
   @SubscribeMessage('proveedores:findAll')
   async findAll(@ConnectedSocket() client: Socket) {
     const result = await this.proveedoresService.findAll();
@@ -46,38 +40,31 @@ export class ProveedoresGateway implements OnGatewayConnection, OnGatewayDisconn
     return result;
   }
 
-  // Obtener un proveedor
   @SubscribeMessage('proveedores:findOne')
-  async findOne(
-    @MessageBody('id_proveedor_pk') id_proveedor_pk: number,
-    @ConnectedSocket() client: Socket,
-  ) {
-    const result = await this.proveedoresService.findOne(id_proveedor_pk);
+  async findOne(@MessageBody('id_proveedor_pk') id: number, @ConnectedSocket() client: Socket) {
+    const result = await this.proveedoresService.findOne(id);
     client.emit('proveedores:detail', result);
     return result;
   }
 
-  // Actualizar proveedor
   @SubscribeMessage('proveedores:update')
   async update(@MessageBody() data: { id_proveedor_pk: number; dto: UpdateProveedorDto }) {
     const result = await this.proveedoresService.update(data.id_proveedor_pk, data.dto);
-    this.server.emit('proveedores:updated', result);
+    this.server.emit('proveedores:updated', result.data);
     return result;
   }
 
-  // Eliminar proveedor
   @SubscribeMessage('proveedores:remove')
-  async remove(@MessageBody('id_proveedor_pk') id_proveedor_pk: number) {
-    const result = await this.proveedoresService.remove(id_proveedor_pk);
-    this.server.emit('proveedores:removed', { id_proveedor_pk });
+  async remove(@MessageBody('id_proveedor_pk') id: number) {
+    const result = await this.proveedoresService.remove(id);
+    this.server.emit('proveedores:removed', { id_proveedor_pk: id });
     return result;
   }
 
-  // Restaurar proveedor
   @SubscribeMessage('proveedores:restore')
-  async restore(@MessageBody('id_proveedor_pk') id_proveedor_pk: number) {
-    const result = await this.proveedoresService.restore(id_proveedor_pk);
-    this.server.emit('proveedores:restored', result);
+  async restore(@MessageBody('id_proveedor_pk') id: number) {
+    const result = await this.proveedoresService.restore(id);
+    this.server.emit('proveedores:restored', result.data);
     return result;
   }
 }

@@ -1,1 +1,0 @@
-export * as usuariosApi from './api'; export * as usuariosModel from './model/types';

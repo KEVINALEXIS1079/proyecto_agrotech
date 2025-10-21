@@ -2,10 +2,11 @@ import { IsInt } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 /*
-  DTO para crear una nueva relación insumo-proveedor.
-  Valida que los IDs de insumo y proveedor sean enteros.
+
 */
 export class CreateInsumoProveedorDto {
+
+
   // ID del insumo
   @ApiProperty({
     description: 'ID del insumo asociado',

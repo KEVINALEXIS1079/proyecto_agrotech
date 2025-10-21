@@ -24,7 +24,7 @@ import { FinanzasPage, ListaPageFinanzas, CrearPageFinanzas, EditarPageFinanzas 
 
 import { PageReportes, ListaPageReporte, CrearPageReporte, EditarPageReporte } from "@/modules/reportes/pages/indexPageReportes";
 
-import {CrearPermisoPage, ListaPermisosPage} from "@/modules/permisos/permisos/pages/indexPagePermisos";
+import {ListaPermisosPage} from "@/modules/permisos/permisos/pages/indexPagePermisos";
 
 import { CrearPageIot, EditarPageIot, ListaPageIot} from "@/modules/iot/Sensor/pages/indexPageIot";
 
@@ -44,10 +44,7 @@ import {
   RequireRecoveryEmail,
   RequireRecoveryCode,
 } from "@/app/guards";
-import CrearSublotePage from "@/modules/cultivo/sublote/pages/CrearPage";
-import CrearLotePage from "@/modules/cultivo/lote/pages/CrearPage";
-import ListaLotePage from "@/modules/cultivo/lote/pages/ListaPage";
-import EditLotePage from "@/modules/cultivo/lote/pages/EditarPage";
+
 
 export default function AppRoutes() {
   const isAuthenticated = () => Boolean(localStorage.getItem("token"));
@@ -182,7 +179,7 @@ export default function AppRoutes() {
 
         {/* Permisos */}
         <Route path="/permisos" element={<ListaPermisosPage />} />
-        <Route path="/crear-permiso" element={<CrearPermisoPage />} />
+
           
 
 

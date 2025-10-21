@@ -1,3 +1,4 @@
+// src/modules/inventario/categorias/controllers/categorias.controller.ts
 import {
   Controller,
   Get,
@@ -20,7 +21,6 @@ import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { CategoriasDocs } from '../docs/categorias.docs';
 
-// Helper para ApiResponses
 function ApiResponses(responses: { status: number; description: string }[]) {
   return applyDecorators(...responses.map(r => ApiResponse(r)));
 }
@@ -28,6 +28,7 @@ function ApiResponses(responses: { status: number; description: string }[]) {
 @ApiTags('Categorias')
 @ApiBearerAuth('access-token')
 @Controller('categorias')
+@UseGuards(JwtAuthGuard, PermisosGuard)
 export class CategoriasController {
   constructor(
     private readonly categoriasService: CategoriasService,
@@ -35,19 +36,17 @@ export class CategoriasController {
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('inventario:categorias:create')
   @ApiOperation(CategoriasDocs.create.operation)
   @ApiBody(CategoriasDocs.create.body)
   @ApiResponses(CategoriasDocs.create.response)
   async create(@Body() dto: CreateCategoriaDto) {
     const result = await this.categoriasService.create(dto);
-    this.categoriasGateway.server.emit('categorias:created', result);
+    this.categoriasGateway.server.emit('categorias:created', result.data);
     return result;
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('inventario:categorias:read')
   @ApiOperation(CategoriasDocs.findAll.operation)
   @ApiResponses(CategoriasDocs.findAll.response)
@@ -56,7 +55,6 @@ export class CategoriasController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('inventario:categorias:read')
   @ApiOperation(CategoriasDocs.findOne.operation)
   @ApiResponses(CategoriasDocs.findOne.response)
@@ -65,19 +63,17 @@ export class CategoriasController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('inventario:categorias:update')
   @ApiOperation(CategoriasDocs.update.operation)
   @ApiBody(CategoriasDocs.update.body)
   @ApiResponses(CategoriasDocs.update.response)
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCategoriaDto) {
     const result = await this.categoriasService.update(id, dto);
-    this.categoriasGateway.server.emit('categorias:updated', result);
+    this.categoriasGateway.server.emit('categorias:updated', result.data);
     return result;
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('inventario:categorias:delete')
   @ApiOperation(CategoriasDocs.remove.operation)
   @ApiResponses(CategoriasDocs.remove.response)
@@ -88,13 +84,12 @@ export class CategoriasController {
   }
 
   @Patch('restore/:id')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('inventario:categorias:update')
   @ApiOperation(CategoriasDocs.restore.operation)
   @ApiResponses(CategoriasDocs.restore.response)
   async restore(@Param('id', ParseIntPipe) id: number) {
     const result = await this.categoriasService.restore(id);
-    this.categoriasGateway.server.emit('categorias:restored', result);
+    this.categoriasGateway.server.emit('categorias:restored', result.data);
     return result;
   }
 }

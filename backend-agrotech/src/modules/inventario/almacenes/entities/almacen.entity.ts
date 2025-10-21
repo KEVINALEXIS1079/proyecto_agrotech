@@ -1,18 +1,26 @@
-import { Column, DeleteDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+// src/modules/almacenes/entities/almacen.entity.ts
+import {
+  Column,
+  DeleteDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Index,
+} from 'typeorm';
 import { Insumo } from '../../insumos/entities/insumo.entity';
 
 @Entity({ name: 'almacenes' })
+@Index('uq_almacenes_nombre', ['nombre_almacen'], { unique: true })
 export class Almacen {
   @PrimaryGeneratedColumn()
   id_almacen_pk: number;
 
-  @Column({ length: 100 })
+  // Alineado con el DTO: 50
+  @Column({ length: 50 })
   nombre_almacen: string;
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamp', nullable: true })
-  deletedAt: Date;
-
-  // relacion de uno a muchos con insumo ya que un almacen puede tener muchos insumos
+  deletedAt: Date | null;
 
   @OneToMany(() => Insumo, (insumo) => insumo.almacen)
   insumos: Insumo[];

@@ -1,3 +1,4 @@
+// src/modules/inventario/movimiento-insumo/services/movimiento-insumo.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,47 +18,51 @@ export class MovimientoInsumoService {
   ) {}
 
   async create(dto: CreateMovimientoInsumoDto): Promise<any> {
-    const insumo = await this.insumoRepo.findOne({ where: { id_insumo_pk: dto.id_insumo_fk } });
+    const insumo = await this.insumoRepo.findOne({
+      where: { id_insumo_pk: dto.id_insumo_fk },
+    });
     if (!insumo) throw new NotFoundException('Insumo no encontrado');
 
-    // actualizar stock
-    let stock = insumo.stock ?? 0;
+    // normaliza tipo
+    const tipo = dto.tipo_movimiento?.toLowerCase?.().trim();
+    if (tipo !== 'entrada' && tipo !== 'salida') {
+      throw new BadRequestException('tipo_movimiento inválido (use "entrada" o "salida")');
+    }
 
-    if (dto.tipo_movimiento.toLowerCase() === 'entrada') {
+    // actualizar stock en UNIDADES de presentación
+    let stock = insumo.stock_unidades ?? 0;
+
+    if (tipo === 'entrada') {
       stock += dto.cantidad;
-    } else if (dto.tipo_movimiento.toLowerCase() === 'salida') {
+    } else {
       stock -= dto.cantidad;
       if (stock < 0) stock = 0;
-    } else {
-      throw new BadRequestException('tipo_movimiento inválido');
     }
 
-    // actualizar estado usando el enum extendido
-    const stock_minimo = 10;
+    // calcular estado
+    const STOCK_MINIMO = 10; // ajústalo si quieres
     let estado: EstadoInsumo = EstadoInsumo.ACTIVO;
-
-    if (stock <= stock_minimo) {
+    if (stock <= STOCK_MINIMO) {
       estado = EstadoInsumo.BAJO_STOCK;
-    } else if (stock <= stock_minimo + 10) {
+    } else if (stock <= STOCK_MINIMO + 10) {
       estado = EstadoInsumo.MEDIO_STOCK;
-    } else {
-      estado = EstadoInsumo.ACTIVO;
     }
 
-    insumo.stock = stock;
+    // guardar insumo
+    insumo.stock_unidades = stock;
     insumo.estado_insumo = estado;
     await this.insumoRepo.save(insumo);
 
+    // crear movimiento (guarda la FK de insumo)
     const movimiento = this.movimientoRepo.create({
       ...dto,
       insumo,
     });
-
     await this.movimientoRepo.save(movimiento);
 
     return {
       message: 'Movimiento de insumo registrado y stock actualizado',
-      nuevoStock: stock,
+      nuevoStockUnidades: stock,
       estado_insumo: estado,
     };
   }

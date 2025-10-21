@@ -1,3 +1,4 @@
+// src/modules/permisos/permisos/hooks/useUsuariosLite.ts
 import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -29,9 +30,9 @@ export const qkUsers = {
 
 /**
  * Hook para leer usuarios "lite" con WS:
- * - `params` normalizados para clave estable
- * - invalidación específica (misma clave) y global (todas las variantes)
- * - atajos para setQueryData opcional si tu WS trae el payload del usuario
+ * - queryKey estable por params normalizados
+ * - invalidación global (todas las variantes) cuando haya eventos WS
+ * - cleanups correctos con on/off del service
  */
 export function useUsuariosLite(params?: {
   page?: number; limit?: number; q?: string;
@@ -49,49 +50,37 @@ export function useUsuariosLite(params?: {
   });
 
   useEffect(() => {
-    // Helper: invalida solo la lista visible
-    const invalidateExact = () =>
-      qc.invalidateQueries({ queryKey: qkUsers.list(norm) });
-
-    // Helper: invalida TODAS las variantes (cambia filtros, páginas, etc.)
+    // Invalida TODAS las variantes (cambia filtros, páginas, etc.)
     const invalidateAll = () =>
       qc.invalidateQueries({ queryKey: qkUsers.base, exact: false });
 
-    // Si tu WS emite el usuario afectado, puedes actualizar en caliente:
-    const offCreated = usuarioService.onCreated((u?: any) => {
-      // Si no quieres setQueryData fino, descomenta solo invalidateAll()
+    // Handlers WS
+    const handleCreated = (_u?: any) => {
+      // opcional: setQueryData fino si quieres
       invalidateAll();
-      // — OPCIONAL fino: si cae en el filtro actual, intenta meterlo en la página:
-      // qc.setQueryData(qkUsers.list(norm), (old: any) => old ? {...old, items: [u, ...old.items]} : old);
-    }) as (() => void) | undefined;
-
-    const offUpdated = usuarioService.onUpdated((u?: any) => {
-      // Refresca todo (seguro) o solo la visible si tu backend garantiza el filtro:
+    };
+    const handleUpdated = (_u?: any) => {
       invalidateAll();
-      // — OPCIONAL fino:
-      // qc.setQueryData(qkUsers.list(norm), (old: any) =>
-      //   old ? {...old, items: old.items.map((x: any) => x.id === u.id ? u : x)} : old
-      // );
-    }) as (() => void) | undefined;
-
-    const offDeleted = usuarioService.onDeleted((id?: number) => {
+    };
+    const handleDeleted = (_id?: number) => {
       invalidateAll();
-      // — OPCIONAL fino:
-      // qc.setQueryData(qkUsers.list(norm), (old: any) =>
-      //   old ? {...old, items: old.items.filter((x: any) => x.id !== id)} : old
-      // );
-    }) as (() => void) | undefined;
-
-    const offList = usuarioService.onListChanged(() => {
-      // Cuando el backend diga que cambió “la lista”, invalida todas las variantes
+    };
+    const handleListChanged = () => {
       invalidateAll();
-    }) as (() => void) | undefined;
+    };
 
+    // Suscribirse
+    usuarioService.onCreated(handleCreated);
+    usuarioService.onUpdated(handleUpdated);
+    usuarioService.onDeleted(handleDeleted);
+    usuarioService.onListChanged(handleListChanged);
+
+    // Cleanup usando los off() del service
     return () => {
-      offCreated?.();
-      offUpdated?.();
-      offDeleted?.();
-      offList?.();
+      usuarioService.offCreated(handleCreated);
+      usuarioService.offUpdated(handleUpdated);
+      usuarioService.offDeleted(handleDeleted);
+      usuarioService.offListChanged(handleListChanged);
     };
   }, [qc, norm]);
 

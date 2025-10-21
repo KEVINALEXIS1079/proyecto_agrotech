@@ -5,19 +5,21 @@ import { motion, AnimatePresence } from "framer-motion";
 /* ================= Variants reutilizables ================ */
 const fadeInUp = {
   initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+  // cast transition to any because Framer Motion's typing for `ease` may not accept raw number[]
+  animate: { opacity: 1, y: 0, transition: ({ duration: 0.55, ease: [0.22, 1, 0.36, 1] } as any) },
 };
 const fadeDown = {
   initial: { opacity: 0, y: -12 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+  // cast transition to any because Framer Motion expects Easing types
+  animate: { opacity: 1, y: 0, transition: ({ duration: 0.45, ease: "easeOut" } as any) },
 };
 const stagger = {
   initial: {},
   animate: { transition: { staggerChildren: 0.12, delayChildren: 0.08 } },
 };
 const tiltHover = {
-  rest: { rotateX: 0, rotateY: 0, y: 0, transition: { type: "spring", stiffness: 300, damping: 20 } },
-  hover: { rotateX: -2.5, rotateY: 2.5, y: -4, transition: { type: "spring", stiffness: 300, damping: 18 } },
+  rest: { rotateX: 0, rotateY: 0, y: 0, transition: ({ type: "spring", stiffness: 300, damping: 20 } as any) },
+  hover: { rotateX: -2.5, rotateY: 2.5, y: -4, transition: ({ type: "spring", stiffness: 300, damping: 18 } as any) },
 };
 
 /* ================== Feature card (animada) ================= */
@@ -26,6 +28,14 @@ function Feature({
   text,
   icon,
 }: { title: string; text: string; icon?: React.ReactNode }) {
+  // Combinamos variantes para evitar pasar `variants` dos veces y evitar conflictos de tipado
+  const featureVariants = {
+    initial: fadeInUp.initial,
+    animate: fadeInUp.animate,
+    rest: tiltHover.rest,
+    hover: tiltHover.hover,
+  } as any;
+
   return (
     <motion.div
       className="
@@ -35,14 +45,13 @@ function Feature({
         shadow-sm hover:shadow-lg transition-all duration-300
         will-change-transform
       "
-      variants={fadeInUp}
+      variants={featureVariants}
       initial="initial"
       whileInView="animate"
       viewport={{ once: true, amount: 0.35 }}
       // Efecto tilt sutil al hover (no cambia colores)
       whileHover="hover"
       animate="rest"
-      variants={tiltHover as any}
       style={{ transformStyle: "preserve-3d" }}
     >
       {icon && (

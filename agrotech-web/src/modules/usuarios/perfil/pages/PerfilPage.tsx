@@ -42,7 +42,7 @@ export default function PerfilPage() {
       telefono: me.telefono ?? "",
       correo: me.correo,
       idFicha: me.idFicha ?? "",
-      estado: me.estado,
+      estado: me.estado === "eliminado" ? "inactivo" : (me.estado as "activo" | "inactivo"),
     });
   }, [me]);
 
@@ -91,13 +91,6 @@ export default function PerfilPage() {
               radius="lg"
               showFallback
               name={fullName || "Usuario"}
-              onError={(e) => {
-                const img = e.currentTarget as HTMLImageElement;
-                if (!img.dataset.fallback) {
-                  img.dataset.fallback = "1"; // evita bucle si no existe el placeholder
-                  img.src = "/placeholder-avatar.png";
-                }
-              }}
             />
             <Button
               isIconOnly
@@ -190,7 +183,7 @@ export default function PerfilPage() {
 
                 <Select
                   label="Estado"
-                  selectedKeys={new Set([edit.estado ?? me.estado])}
+                  selectedKeys={new Set([edit.estado ?? (me.estado === "eliminado" ? "inactivo" : me.estado)])}
                   onSelectionChange={(keys) => {
                     const v = Array.from(keys)[0] as "activo" | "inactivo";
                     setEdit((s) => ({ ...s, estado: v }));

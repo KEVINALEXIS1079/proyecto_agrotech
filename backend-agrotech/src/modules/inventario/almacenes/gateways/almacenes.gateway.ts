@@ -1,11 +1,11 @@
+// src/modules/almacenes/gateways/almacenes.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
   MessageBody,
-  ConnectedSocket,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import { AlmacenesService } from '../services/almacenes.service';
 import { CreateAlmacenDto } from '../dto/create-almacen.dto';
 import { UpdateAlmacenDto } from '../dto/update-almacen.dto';
@@ -20,57 +20,33 @@ export class AlmacenesGateway {
 
   constructor(private readonly almacenService: AlmacenesService) {}
 
-  //  Crear almacén (sin permisos)
   @SubscribeMessage('almacenes:create')
   async create(@MessageBody() dto: CreateAlmacenDto) {
-    const almacen = await this.almacenService.create(dto);
-    this.server.emit('almacenes:created', almacen);
-    return almacen;
+    return this.almacenService.create(dto); // el service emite
   }
 
-  //  Obtener todos los almacenes
   @SubscribeMessage('almacenes:findAll')
   async findAll() {
-    return await this.almacenService.findAll();
+    return this.almacenService.findAll();
   }
 
-  //  Obtener un almacén por ID
   @SubscribeMessage('almacenes:findOne')
   async findOne(@MessageBody('id') id: number) {
-    return await this.almacenService.findOne(id);
+    return this.almacenService.findOne(id);
   }
 
-  //  Actualizar un almacén
   @SubscribeMessage('almacenes:update')
   async update(@MessageBody() payload: { id: number; data: UpdateAlmacenDto }) {
-    const { id, data } = payload;
-    const updated = await this.almacenService.update(id, data);
-    this.server.emit('almacenes:updated', updated);
-    return updated;
+    return this.almacenService.update(payload.id, payload.data); // el service emite
   }
 
-  //  Eliminar un almacén
   @SubscribeMessage('almacenes:remove')
   async remove(@MessageBody('id') id: number) {
-    const result = await this.almacenService.remove(id);
-    this.server.emit('almacenes:removed', { id });
-    return result;
+    return this.almacenService.remove(id); // el service emite
   }
 
-  //  Restaurar un almacén
   @SubscribeMessage('almacenes:restore')
   async restore(@MessageBody('id') id: number) {
-    const restored = await this.almacenService.restore(id);
-    this.server.emit('almacenes:restored', restored);
-    return restored;
-  }
-
-  //  Eventos opcionales de conexión
-  handleConnection(client: Socket) {
-    console.log(`Cliente conectado: ${client.id}`);
-  }
-
-  handleDisconnect(client: Socket) {
-    console.log(`Cliente desconectado: ${client.id}`);
+    return this.almacenService.restore(id); // el service emite
   }
 }

@@ -1,5 +1,15 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Input, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip, User as UserCard, Avatar } from "@heroui/react";
+// src/app/layout/components/ProtectedHeader.tsx
+import { useNavigate } from "react-router-dom";
+import {
+  Input,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Chip,
+  User as UserCard,
+  Avatar,
+} from "@heroui/react";
 import { Search, Settings, UserRound, LogOut, Mail } from "lucide-react";
 import HeaderNotifications from "./HeaderNotifications";
 
@@ -9,12 +19,12 @@ type UserInfo = { name: string; email: string; avatarUrl?: string; role?: string
 export default function ProtectedHeader({
   title,
   user,
-  notifications,
+  notifications = [],
   onLogout,
 }: {
   title: string;
   user: UserInfo;
-  notifications: Notification[];
+  notifications?: Notification[];
   onLogout: () => void;
 }) {
   const navigate = useNavigate();
@@ -39,23 +49,24 @@ export default function ProtectedHeader({
             <button aria-label="Usuario">
               <Avatar
                 size="sm"
-                src={user.avatarUrl}
-                name={user.name ?? "U"}
+                src={user.avatarUrl || undefined}
+                name={user.name || "U"}
                 className="ring-1 ring-default-200"
               />
             </button>
           </DropdownTrigger>
+
           <DropdownMenu aria-label="Menú de usuario" className="w-[280px]">
             <DropdownItem key="profile" isReadOnly className="h-auto cursor-default">
               <UserCard
-                name={user.name ?? "Usuario"}
+                name={user.name || "Usuario"}
                 description={
                   <span className="inline-flex items-center gap-1 text-xs">
                     <Mail className="h-3 w-3" />
                     {user.email}
                   </span>
                 }
-                avatarProps={{ src: user.avatarUrl, name: user.name ?? "U" }}
+                avatarProps={{ src: user.avatarUrl || undefined, name: user.name || "U" }}
               />
               <Chip size="sm" variant="flat" className="mt-2">
                 {user.role ?? "Invitado"}
@@ -72,9 +83,8 @@ export default function ProtectedHeader({
 
             <DropdownItem
               key="profile-btn"
-              as={Link}
-              to="/perfil"
               startContent={<UserRound className="h-4 w-4" />}
+              onPress={() => navigate("/perfil")}
             >
               Mi perfil
             </DropdownItem>

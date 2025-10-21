@@ -18,6 +18,12 @@ import {
 } from "../api/permiso.service";
 
 /* ======================
+ * Tipos de selección
+ * ====================== */
+export type PermisoSel = { id: number; nombre: string; selected: boolean };
+export type PermisosSelectionResp = { total: number; permisos: PermisoSel[] };
+
+/* ======================
  * Query Keys
  * ====================== */
 export const qk = {
@@ -29,6 +35,8 @@ export const qk = {
   permisosRoleSel: (roleId?: number, moduleId?: number) =>
     ["permisos", "roleSel", { roleId, moduleId }] as const,
 };
+
+export const qkModules = { list: () => ["permiso", "modules"] as const };
 
 /* ======================
  * Lecturas
@@ -86,14 +94,32 @@ export function useRolesEliminados() {
   return query;
 }
 
+export function usePermisoModules() {
+  return useQuery({
+    queryKey: qkModules.list(),
+    queryFn: listPermisoModules,
+    staleTime: 60_000,
+  });
+}
+
 export function usePermisosUserSelection(userId?: number, moduleId?: number) {
   const qc = useQueryClient();
   const enabled = Boolean(userId);
 
-  const query = useQuery({
+  const query = useQuery<PermisosSelectionResp>({
     enabled,
     queryKey: qk.permisosUserSel(userId, moduleId),
-    queryFn: () => getPermisosForUserSelection(userId!, moduleId),
+    queryFn: async () => {
+      const resp = await getPermisosForUserSelection(userId!, moduleId);
+      return {
+        total: resp.total,
+        permisos: resp.permisos.map((p: any) => ({
+          id: p.id,
+          nombre: p.permisoCompleto ?? `${p.modulo ?? p.module?.nombre ?? ""}:${p.accion ?? ""}`,
+          selected: Boolean(p.selected),
+        })),
+      } as PermisosSelectionResp;
+    },
   });
 
   // WS: refrescar la lista visible (user+module)
@@ -120,10 +146,20 @@ export function usePermisosRoleSelection(roleId?: number, moduleId?: number) {
   const qc = useQueryClient();
   const enabled = Boolean(roleId);
 
-  const query = useQuery({
+  const query = useQuery<PermisosSelectionResp>({
     enabled,
     queryKey: qk.permisosRoleSel(roleId, moduleId),
-    queryFn: () => getPermisosForRoleSelection(roleId!, moduleId),
+    queryFn: async () => {
+      const resp = await getPermisosForRoleSelection(roleId!, moduleId);
+      return {
+        total: resp.total,
+        permisos: resp.permisos.map((p: any) => ({
+          id: p.id,
+          nombre: p.permisoCompleto ?? `${p.modulo ?? p.module?.nombre ?? ""}:${p.accion ?? ""}`,
+          selected: Boolean(p.selected),
+        })),
+      } as PermisosSelectionResp;
+    },
   });
 
   // WS: refrescar la lista visible (role+module)
@@ -160,8 +196,8 @@ export function useTogglePermisoOnUser() {
       const key = qk.permisosUserSel(vars.userId, vars.moduleId);
       await qc.cancelQueries({ queryKey: key });
 
-      const prev = qc.getQueryData<{ total: number; permisos: any[] }>(key);
-      qc.setQueryData<{ total: number; permisos: any[] }>(key, (old) => {
+      const prev = qc.getQueryData<PermisosSelectionResp>(key);
+      qc.setQueryData<PermisosSelectionResp>(key, (old) => {
         if (!old) return old as any;
         return {
           ...old,
@@ -195,8 +231,8 @@ export function useTogglePermisoOnRole() {
       const key = qk.permisosRoleSel(vars.roleId, vars.moduleId);
       await qc.cancelQueries({ queryKey: key });
 
-      const prev = qc.getQueryData<{ total: number; permisos: any[] }>(key);
-      qc.setQueryData<{ total: number; permisos: any[] }>(key, (old) => {
+      const prev = qc.getQueryData<PermisosSelectionResp>(key);
+      qc.setQueryData<PermisosSelectionResp>(key, (old) => {
         if (!old) return old as any;
         return {
           ...old,
@@ -258,17 +294,4 @@ export function useRolesCrud() {
   });
 
   return { create, rename, remove, restore };
-}
-
-/* ======================
- * Módulos de permisos (opcional)
- * ====================== */
-export const qkModules = { list: () => ["permiso", "modules"] as const };
-
-export function usePermisoModules() {
-  return useQuery({
-    queryKey: qkModules.list(),
-    queryFn: listPermisoModules,
-    staleTime: 60_000,
-  });
 }

@@ -1,3 +1,4 @@
+// src/modules/almacenes/dto/create-almacen.dto.ts
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 

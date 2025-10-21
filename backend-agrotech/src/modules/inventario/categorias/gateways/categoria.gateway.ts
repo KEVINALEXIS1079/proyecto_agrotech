@@ -1,3 +1,4 @@
+// src/modules/inventario/categorias/gateways/categoria.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -19,36 +20,31 @@ export class CategoriasGateway {
 
   constructor(private readonly categoriasService: CategoriasService) {}
 
-  //  Crear categoría
   @SubscribeMessage('categorias:create')
   async create(@MessageBody() dto: CreateCategoriaDto) {
-    const categoria = await this.categoriasService.create(dto);
-    this.server.emit('categorias:created', categoria);
-    return categoria;
+    const result = await this.categoriasService.create(dto);
+    this.server.emit('categorias:created', result.data);
+    return result;
   }
 
-  //  Obtener todas las categorías
   @SubscribeMessage('categorias:findAll')
   async findAll() {
     return await this.categoriasService.findAll();
   }
 
-  //  Obtener una categoría por ID
   @SubscribeMessage('categorias:findOne')
   async findOne(@MessageBody('id') id: number) {
     return await this.categoriasService.findOne(id);
   }
 
-  //  Actualizar categoría
   @SubscribeMessage('categorias:update')
   async update(@MessageBody() payload: { id: number; data: UpdateCategoriaDto }) {
     const { id, data } = payload;
-    const updated = await this.categoriasService.update(id, data);
-    this.server.emit('categorias:updated', updated);
-    return updated;
+    const result = await this.categoriasService.update(id, data);
+    this.server.emit('categorias:updated', result.data);
+    return result;
   }
 
-  //  Eliminar categoría
   @SubscribeMessage('categorias:remove')
   async remove(@MessageBody('id') id: number) {
     const result = await this.categoriasService.remove(id);
@@ -56,19 +52,16 @@ export class CategoriasGateway {
     return result;
   }
 
-  //  Restaurar categoría
   @SubscribeMessage('categorias:restore')
   async restore(@MessageBody('id') id: number) {
-    const restored = await this.categoriasService.restore(id);
-    this.server.emit('categorias:restored', restored);
-    return restored;
+    const result = await this.categoriasService.restore(id);
+    this.server.emit('categorias:restored', result.data);
+    return result;
   }
 
-  //  Eventos opcionales de conexión/desconexión
   handleConnection(client: any) {
     console.log(`Cliente conectado: ${client.id}`);
   }
-
   handleDisconnect(client: any) {
     console.log(`Cliente desconectado: ${client.id}`);
   }

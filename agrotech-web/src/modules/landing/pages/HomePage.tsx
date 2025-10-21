@@ -20,12 +20,14 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
  * ========================= */
 const fadeInUp = {
   hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+  // cast transition to any because Framer Motion's `ease` typing can be strict
+  show: { opacity: 1, y: 0, transition: ({ duration: 0.35, ease: "easeOut" } as any) },
 };
 
 const fadeIn = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { duration: 0.35, ease: "easeOut" } },
+  // cast transition to any because Framer Motion's `ease` typing can be strict
+  show: { opacity: 1, transition: ({ duration: 0.35, ease: "easeOut" } as any) },
 };
 
 const listStagger = {
@@ -35,7 +37,8 @@ const listStagger = {
 
 const floatHover = {
   rest: { y: 0, scale: 1 },
-  hover: { y: -3, scale: 1.02, transition: { type: "spring", stiffness: 220, damping: 16 } },
+  // cast spring transitions to any to satisfy types
+  hover: { y: -3, scale: 1.02, transition: ({ type: "spring", stiffness: 220, damping: 16 } as any) },
   tap: { scale: 0.98 },
 };
 
@@ -411,11 +414,11 @@ function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; val
  * ========================= */
 function ActivityRow({ text, date, time }: { text: string; date: string; time: string }) {
   return (
-    <motion.li
+    <motion.div
       className="flex items-center gap-3"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
+      transition={{ duration: 0.35, ease: ("easeOut" as any) }}
       whileHover={{ scale: 1.01 }}
     >
       <span className="h-2.5 w-2.5 rounded-full bg-success shrink-0" />
@@ -424,6 +427,6 @@ function ActivityRow({ text, date, time }: { text: string; date: string; time: s
         <span>{date}</span>
         <span>{time}</span>
       </div>
-    </motion.li>
+    </motion.div>
   );
 }

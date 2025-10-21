@@ -1,28 +1,32 @@
+// src/modules/inventario/insumos/controllers/insumos.controller.ts
 import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
-  Param,
   Delete,
+  Body,
+  Param,
   ParseIntPipe,
+  Query,
   UseGuards,
   applyDecorators,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+
 import { InsumosService } from '../services/insumos.service';
 import { CreateInsumoDto } from '../dto/create-insumo.dto';
 import { UpdateInsumoDto } from '../dto/update-insumo.dto';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
-import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { InsumosGateway } from '../gateways/insumos.gateway';
 import { InsumosDocs } from '../docs/insumos.docs';
 
-// Helper para aplicar todos los ApiResponse de forma dinámica
+import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
+import { PermisosGuard } from 'src/common/guard/permisos.guard';
+import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
+
+// Helper para aplicar varios ApiResponse
 function ApiResponses(responses: { status: number; description: string }[]) {
-  return applyDecorators(...responses.map(r => ApiResponse(r)));
+  return applyDecorators(...responses.map((r) => ApiResponse(r)));
 }
 
 @ApiTags('Insumos')
@@ -40,19 +44,21 @@ export class InsumosController {
   @ApiOperation(InsumosDocs.create.operation)
   @ApiBody(InsumosDocs.create.body)
   @ApiResponses(InsumosDocs.create.response)
-  async create(@Body() createInsumoDto: CreateInsumoDto) {
-    const insumo = await this.insumosService.create(createInsumoDto);
-    this.insumosGateway.server.emit('insumos:created', insumo);
-    return insumo;
+  async create(@Body() dto: CreateInsumoDto) {
+    const result = await this.insumosService.create(dto);
+    this.insumosGateway.server.emit('insumos:created', result);
+    return result;
   }
 
+  // ÚNICO GET (con filtro opcional por almacén): /insumos?almacenId=1
   @Get()
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('inventario:insumos:read')
   @ApiOperation(InsumosDocs.findAll.operation)
   @ApiResponses(InsumosDocs.findAll.response)
-  async findAll() {
-    return await this.insumosService.findAll();
+  async findAll(@Query('almacenId') almacenId?: string) {
+    const id = almacenId ? Number(almacenId) : undefined;
+    return await this.insumosService.findAll(id);
   }
 
   @Get(':id_insumo_pk')
@@ -72,11 +78,11 @@ export class InsumosController {
   @ApiResponses(InsumosDocs.update.response)
   async update(
     @Param('id_insumo_pk', ParseIntPipe) id_insumo_pk: number,
-    @Body() updateInsumoDto: UpdateInsumoDto,
+    @Body() dto: UpdateInsumoDto,
   ) {
-    const insumo = await this.insumosService.update(id_insumo_pk, updateInsumoDto);
-    this.insumosGateway.server.emit('insumos:updated', insumo);
-    return insumo;
+    const result = await this.insumosService.update(id_insumo_pk, dto);
+    this.insumosGateway.server.emit('insumos:updated', result);
+    return result;
   }
 
   @Delete(':id_insumo_pk')
@@ -85,9 +91,9 @@ export class InsumosController {
   @ApiOperation(InsumosDocs.remove.operation)
   @ApiResponses(InsumosDocs.remove.response)
   async remove(@Param('id_insumo_pk', ParseIntPipe) id_insumo_pk: number) {
-    const deleted = await this.insumosService.remove(id_insumo_pk);
+    const result = await this.insumosService.remove(id_insumo_pk);
     this.insumosGateway.server.emit('insumos:removed', { id_insumo_pk });
-    return deleted;
+    return result;
   }
 
   @Patch('restore/:id_insumo_pk')
@@ -96,8 +102,8 @@ export class InsumosController {
   @ApiOperation(InsumosDocs.restore.operation)
   @ApiResponses(InsumosDocs.restore.response)
   async restore(@Param('id_insumo_pk', ParseIntPipe) id_insumo_pk: number) {
-    const insumo = await this.insumosService.restore(id_insumo_pk);
-    this.insumosGateway.server.emit('insumos:restored', insumo);
-    return insumo;
+    const result = await this.insumosService.restore(id_insumo_pk);
+    this.insumosGateway.server.emit('insumos:restored', result);
+    return result;
   }
 }

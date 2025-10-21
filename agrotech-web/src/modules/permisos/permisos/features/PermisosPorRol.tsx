@@ -40,6 +40,7 @@ import {
   buildModuleMapFromPermisos,
   moduleOptionsFromMap,
   buildPermisoLabel,
+  getModuleLabelFromMap,
 } from "../model/modules-map";
 
 type ModOpt = { id: string; nombre: string };
@@ -102,10 +103,7 @@ export default function PermisosPorRol() {
   const { roles, counts } = useRolesActivos();
   const eliminados = useRolesEliminados();
 
-
   const sel = usePermisosRoleSelection(rolId ?? undefined, moduleId);
-
-
   const selAll = usePermisosRoleSelection(rolId ?? undefined, undefined);
 
   const toggle = useTogglePermisoOnRole();
@@ -118,13 +116,19 @@ export default function PermisosPorRol() {
   const permisos = sel.data?.permisos ?? [];
   const allOn = useMemo(() => permisos.length > 0 && permisos.every((p) => p.selected), [permisos]);
 
-
+  // Mapa de nombres de módulo “bonitos”
   const moduleMap = useMemo(
     () => buildModuleMapFromPermisos(selAll.data?.permisos ?? []),
     [selAll.data?.permisos]
   );
 
+  // Label del módulo seleccionado (visual)
+  const currentModuleLabel = useMemo(
+    () => getModuleLabelFromMap(moduleId ?? null, moduleMap),
+    [moduleId, moduleMap]
+  );
 
+  // Opciones del Select
   const MODULE_SELECT_OPTIONS: ModOpt[] = useMemo(() => {
     const opts = moduleOptionsFromMap(moduleMap).map((o) => ({
       id: String(o.id),
@@ -318,7 +322,7 @@ export default function PermisosPorRol() {
               <div className="sticky top-2 z-10 mb-0.5 rounded-t-2xl px-3 py-2 bg-white/70 dark:bg-black/30 backdrop-blur supports-[backdrop-filter]:backdrop-blur-sm border-b border-black/5 dark:border-white/10">
                 <div className="flex flex-wrap items-center gap-2 justify-between">
                   <div className="flex items-center gap-2 text-sm">
-                    <Layers className="h-4 w-4" /> Permisos del módulo
+                    <Layers className="h-4 w-4" /> Permisos del módulo — {currentModuleLabel}
                   </div>
                   <Button
                     size="sm"
@@ -330,9 +334,7 @@ export default function PermisosPorRol() {
                       const accion = allOn ? "desactivar" : "asignar";
                       ask({
                         title: `¿${allOn ? "Desactivar" : "Asignar"} todos?`,
-                        message: `Se van a ${accion} ${permisos.length} permisos en el rol "${currentRole.nombre}" para ${
-                          moduleId ? `el módulo seleccionado` : "todos los módulos visibles"
-                        }.`,
+                        message: `Se van a ${accion} ${permisos.length} permisos en el rol "${currentRole.nombre}" para el ámbito: ${currentModuleLabel}.`,
                         confirmText: allOn ? "Desactivar todos" : "Asignar todos",
                         onConfirm: () => {
                           permisos.forEach((p) => {
@@ -367,7 +369,7 @@ export default function PermisosPorRol() {
                         {permisos.map((p) => (
                           <TableRow key={p.id} className="hover:bg-success/10 transition-colors">
                             <TableCell>
-                              <span className="text-sm">{buildPermisoLabel(p)}</span>
+                              <span className="text-sm">{buildPermisoLabel(p, moduleMap)}</span>
                             </TableCell>
                             <TableCell>
                               <div className="flex justify-end">
@@ -376,10 +378,10 @@ export default function PermisosPorRol() {
                                   isSelected={!!p.selected}
                                   onValueChange={(v) => {
                                     if (!currentRole) return;
-                                    const label = buildPermisoLabel(p);
+                                    const label = buildPermisoLabel(p, moduleMap);
                                     ask({
                                       title: v ? "¿Activar este permiso?" : "¿Desactivar este permiso?",
-                                      message: `Rol: ${currentRole.nombre}\nPermiso: ${label}`,
+                                      message: `Rol: ${currentRole.nombre}\nMódulo: ${currentModuleLabel}\nPermiso: ${label}`,
                                       confirmText: v ? "Activar" : "Desactivar",
                                       onConfirm: () =>
                                         toggle.mutate({
