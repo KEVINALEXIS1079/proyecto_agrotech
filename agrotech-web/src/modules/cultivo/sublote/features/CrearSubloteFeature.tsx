@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ListChecks } from "lucide-react";
-import type { CreateSubloteDTO } from "../model/types";
+import type { Lote } from "../../lote/model/types";
+import type { CreateSubloteDTO, Sublote } from "../model/types";
 import { useSubloteList } from "../hooks/useSubloteList";
 import { useCreateSublote } from "../hooks/useCreateSublote";
 import { useLoteList } from "@/modules/cultivo/lote/hooks/useLoteList";
@@ -10,13 +11,10 @@ import SubloteMap from "../widgets/SubloteMap";
 
 export default function CrearSubloteFeature() {
   const navigate = useNavigate();
-
-  // Hooks de sublotes y lotes
   const { sublotes } = useSubloteList();
   const { lotes } = useLoteList();
   const { createSublote, loading: creating } = useCreateSublote();
 
-  // Estados locales
   const [nombreSublote, setNombreSublote] = useState("");
   const [errorNombre, setErrorNombre] = useState("");
   const [mapMensaje, setMapMensaje] = useState("");
@@ -26,7 +24,6 @@ export default function CrearSubloteFeature() {
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Manejo de envío
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -73,33 +70,37 @@ export default function CrearSubloteFeature() {
 
   return (
     <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100 overflow-y-scroll h-[calc(100vh-10rem)]">
-      {/* Header */}
       <div className="flex items-center gap-2 mb-8">
         <ListChecks className="h-6 w-6 text-green-600" />
         <h2 className="text-2xl font-bold text-gray-800">Registrar Sublote</h2>
       </div>
 
-      {/* Mapa */}
       <div className="mb-6" ref={mapContainerRef}>
         <SubloteMap
           coordenadas={coordenadas}
           setCoordenadas={setCoordenadas}
           setArea={setArea}
-          sublotesExistentes={sublotes.map((s) => ({
-            nombre_sublote: s.nombre_sublote || `Sublote ${s.id_sublote_pk}`,
-            coordenadas_sublote: s.coordenadas_sublote.map((c) => ({
-              latitud_sublote: c.latitud_sublote,
-              longitud_sublote: c.longitud_sublote,
-            })),
-          }))}
-          lotes={lotes.map((l) => ({
-            id_lote_pk: l.id_lote_pk,
-            nombre_lote: l.nombre_lote,
-            coordenadas_lote: l.coordenadas_lote.map((c) => ({
-              latitud_lote: c.latitud_lote,
-              longitud_lote: c.longitud_lote,
-            })),
-          }))}
+          sublotesExistentes={
+            sublotes.map((s): Sublote => ({
+              id_sublote_pk: s.id_sublote_pk,
+              nombre_sublote: s.nombre_sublote || `Sublote ${s.id_sublote_pk}`,
+              area_sublote: s.area_sublote || 0,
+              coordenadas_sublote: s.coordenadas_sublote,
+              lote: s.lote || null,
+              cultivos: s.cultivos || [],
+              delete_at: s.delete_at || null,
+            }))
+          }
+          lotes={
+            lotes.map((l): Lote => ({
+              id_lote_pk: l.id_lote_pk,
+              nombre_lote: l.nombre_lote,
+              area_lote: l.area_lote || 0,
+              coordenadas_lote: l.coordenadas_lote,
+              sublotes: l.sublotes || [],
+              delete_at: l.delete_at || null,
+            }))
+          }
           loteSeleccionado={loteSeleccionado}
           setLoteSeleccionado={setLoteSeleccionado}
           mensaje={mapMensaje}
@@ -107,7 +108,6 @@ export default function CrearSubloteFeature() {
         />
       </div>
 
-      {/* Formulario */}
       <SubloteForm
         nombreSublote={nombreSublote}
         setNombreSublote={(v) => {

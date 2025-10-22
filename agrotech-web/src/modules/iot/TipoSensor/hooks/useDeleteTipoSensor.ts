@@ -13,7 +13,7 @@ export function useDeleteTipoSensor() {
   } = useMutation({
     mutationFn: tipoSensorService.remove,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TIPO_SENSOR_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [TIPO_SENSOR_QUERY_KEY] });
     },
   });
 

@@ -15,7 +15,7 @@ export function useUpdateTipoSensor() {
     mutationFn: (variables: { id: number; data: any }) => 
       tipoSensorService.update(variables.id, variables.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TIPO_SENSOR_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [TIPO_SENSOR_QUERY_KEY] });
     },
   });
 

@@ -1,7 +1,7 @@
 // ------------------------------
 // Import del tipo Lote (para relación entre sublote y lote padre)
 // ------------------------------
-import type { Lote } from "../../lote/widgets/LoteMapList";
+import type { Lote } from "../../lote/model/types";
 
 // ------------------------------
 // Estructura principal del sublote
@@ -31,18 +31,18 @@ export interface Sublote {
 // DTO para creación de sublotes
 // ------------------------------
 export interface CreateSubloteDTO {
-  nombre_sublote: string; // Nombre asignado por el usuario
+  nombre_sublote: string;
   coordenadas_sublote: {
     latitud_sublote: number;
     longitud_sublote: number;
   }[];
-  id_lote_fk: number; // ID del lote padre (FK obligatoria)
-  area_sublote?: number; // Área opcional (puede calcularse en backend)
+  id_lote_fk: number;
+  area_sublote?: number;
 }
 
 // ------------------------------
 // DTO para actualización de sublotes
 // ------------------------------
 export interface UpdateSubloteDTO extends Partial<CreateSubloteDTO> {
-  id_sublote_pk: number; // Requerido para identificar qué sublote se actualiza
+  id_sublote_pk: number;
 }

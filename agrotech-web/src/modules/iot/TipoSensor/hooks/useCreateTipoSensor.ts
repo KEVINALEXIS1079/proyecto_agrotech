@@ -15,7 +15,7 @@ export function useCreateTipoSensor() {
     onSuccess: () => {
       // Al tener éxito, le decimos a React Query que los datos de la lista están obsoletos.
       // Esto hará que cualquier componente usando esta clave se actualice.
-      queryClient.invalidateQueries({ queryKey: TIPO_SENSOR_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [TIPO_SENSOR_QUERY_KEY] });
     },
   });
 

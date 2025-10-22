@@ -38,6 +38,10 @@ class TipoSensorService {
     await api.patch(`/tipo-sensor/restore/${id}`);
     return true;
   }
+    async getById(id: number): Promise<TipoSensor> {
+    const { data } = await api.get(`/tipo-sensor/${id}`);
+    return mapTipoSensorFromApi(data);
+  }
 
   // --- Métodos WebSocket (para escuchar en tiempo real) ---
 

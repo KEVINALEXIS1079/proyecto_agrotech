@@ -6,6 +6,10 @@ import { Calendar, ListChecks, Timer, HandCoins } from "lucide-react";
 import type { Actividad } from "../model/types";
 import { getActividadById, updateActividad } from "../api";
 
+interface ActividadExtendida extends Actividad {
+  id_tipo_actividad_fk?: number; // agregado para evitar errores de tipo
+}
+
 export default function EditarPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -15,7 +19,7 @@ export default function EditarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const [form, setForm] = useState<Partial<Actividad>>({
+  const [form, setForm] = useState<Partial<ActividadExtendida>>({
     nombre_actividad: "",
     descripcion_actividad: "",
     estado_actividad: "En progreso",
@@ -48,7 +52,7 @@ export default function EditarPage() {
           fecha_actividad: data.fecha_actividad?.slice(0, 10),
           fecha_inicio_actividad: data.fecha_inicio_actividad?.slice(0, 10),
           fecha_fin_actividad: data.fecha_fin_actividad?.slice(0, 10),
-          id_tipo_actividad_fk: (data as any).id_tipo_actividad_fk ?? 1, // 🔑 ajustado al backend
+          id_tipo_actividad_fk: (data as any).id_tipo_actividad_fk ?? 1, // ✅ mantiene compatibilidad
         });
       } catch (e: any) {
         const msgBack = e?.response?.data?.message ?? "No se pudo cargar la actividad.";
@@ -59,10 +63,10 @@ export default function EditarPage() {
     })();
   }, [id]);
 
-  const onChange = <K extends keyof Actividad>(k: K, v: any) =>
+  const onChange = <K extends keyof ActividadExtendida>(k: K, v: any) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  const validar = (f: Partial<Actividad>): string | null => {
+  const validar = (f: Partial<ActividadExtendida>): string | null => {
     if (!f.nombre_actividad?.trim()) return "El nombre es obligatorio.";
     if (!f.descripcion_actividad?.trim()) return "La descripción es obligatoria.";
     if (!f.fecha_actividad) return "Selecciona la fecha de actividad.";
@@ -94,7 +98,7 @@ export default function EditarPage() {
         fecha_actividad: form.fecha_actividad!,
         fecha_inicio_actividad: form.fecha_inicio_actividad!,
         fecha_fin_actividad: form.fecha_fin_actividad!,
-        id_tipo_actividad_fk: form.id_tipo_actividad_fk!,
+        id_tipo_actividad_fk: form.id_tipo_actividad_fk ?? 1, 
       });
       alert("Actividad actualizada");
       navigate("/actividades");

@@ -1,5 +1,4 @@
-// EditarSubloteFeature.tsx
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ListChecks } from "lucide-react";
 import type { CreateSubloteDTO } from "../model/types";
@@ -8,11 +7,7 @@ import { useSubloteById } from "../hooks/useSubloteById";
 import { useUpdateSublote } from "../hooks/useUpdateSublote";
 import { useLoteList } from "../../lote/hooks/useLoteList";
 import SubloteForm from "../ui/SubloteForm";
-import SubloteMap, {
-  type CoordenadaSublote,
-  type SubloteExistente,
-  type LoteExistente,
-} from "../widgets/SubloteMap";
+import SubloteMap, { type CoordenadaSublote } from "../widgets/SubloteMap";
 
 interface Props {
   subloteId: number;
@@ -21,13 +16,11 @@ interface Props {
 export default function EditarSubloteFeature({ subloteId }: Props) {
   const navigate = useNavigate();
 
-  // Hooks de sublotes y lotes
   const { sublotes } = useSubloteList();
   const { sublote, loading: loadingSublote } = useSubloteById(subloteId);
   const { updateSublote, loading: updating } = useUpdateSublote();
   const { lotes } = useLoteList();
 
-  // Estados locales
   const [nombreSublote, setNombreSublote] = useState("");
   const [errorNombre, setErrorNombre] = useState("");
   const [coordenadas, setCoordenadas] = useState<CoordenadaSublote[]>([]);
@@ -37,37 +30,6 @@ export default function EditarSubloteFeature({ subloteId }: Props) {
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Sublotes existentes excluyendo el que estamos editando
-  const sublotesExistentes: SubloteExistente[] = useMemo(
-    () =>
-      sublotes
-        .filter((s) => s.id_sublote_pk !== subloteId)
-        .map((s) => ({
-          nombre_sublote: s.nombre_sublote || `Sublote ${s.id_sublote_pk}`,
-          coordenadas_sublote:
-            s.coordenadas_sublote?.map((c) => ({
-              latitud_sublote: c.latitud_sublote,
-              longitud_sublote: c.longitud_sublote,
-            })) || [],
-        })),
-    [sublotes, subloteId]
-  );
-
-  const lotesExistentes: LoteExistente[] = useMemo(
-    () =>
-      lotes.map((l) => ({
-        id_lote_pk: l.id_lote_pk,
-        nombre_lote: l.nombre_lote,
-        coordenadas_lote:
-          l.coordenadas_lote?.map((c) => ({
-            latitud_lote: c.latitud_lote,
-            longitud_lote: c.longitud_lote,
-          })) || [],
-      })),
-    [lotes]
-  );
-
-  // Cargar datos del sublote a editar
   useEffect(() => {
     if (!sublote) return;
     setNombreSublote(sublote.nombre_sublote || "");
@@ -81,7 +43,6 @@ export default function EditarSubloteFeature({ subloteId }: Props) {
     setLoteSeleccionado(String(sublote.lote?.id_lote_pk || ""));
   }, [sublote]);
 
-  // Manejo de envío
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -107,10 +68,7 @@ export default function EditarSubloteFeature({ subloteId }: Props) {
     }
     if (coordenadas.length < 3) {
       setMensajeMapa("Debes colocar al menos 3 puntos en el mapa.");
-      mapContainerRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      mapContainerRef.current?.scrollIntoView({ behavior: "smooth" });
       return;
     }
     setMensajeMapa("");
@@ -129,10 +87,7 @@ export default function EditarSubloteFeature({ subloteId }: Props) {
       navigate("/sublotes/listar");
     } catch {
       setMensajeMapa("No se pudo actualizar el sublote.");
-      mapContainerRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      mapContainerRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -140,23 +95,19 @@ export default function EditarSubloteFeature({ subloteId }: Props) {
 
   return (
     <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100 overflow-y-scroll h-[calc(100vh-10rem)] space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <ListChecks className="h-6 w-6 text-green-600" />
         <h2 className="text-2xl font-bold text-gray-800">Editar Sublote</h2>
       </div>
 
-      {/* Mapa */}
       <div ref={mapContainerRef}>
         <SubloteMap
           coordenadas={coordenadas}
           setCoordenadas={setCoordenadas}
           setArea={setArea}
-          // Pasar sublotes completos pero filtrando el actual
           sublotesExistentes={sublotes.filter(
             (s) => s.id_sublote_pk !== subloteId
           )}
-          // Pasar lotes completos
           lotes={lotes}
           loteSeleccionado={loteSeleccionado}
           setLoteSeleccionado={setLoteSeleccionado}
@@ -165,7 +116,6 @@ export default function EditarSubloteFeature({ subloteId }: Props) {
         />
       </div>
 
-      {/* Formulario */}
       <SubloteForm
         nombreSublote={nombreSublote}
         setNombreSublote={(v) => {

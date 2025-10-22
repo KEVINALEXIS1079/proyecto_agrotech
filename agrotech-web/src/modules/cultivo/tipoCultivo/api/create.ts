@@ -1,4 +1,4 @@
-import type { TipoCultivo } from "../model/types";
+
 import api from "@/shared/api/client";
 
 export interface TipoCultivoPayload {

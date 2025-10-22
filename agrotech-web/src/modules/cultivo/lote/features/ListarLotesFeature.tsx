@@ -1,4 +1,4 @@
-// features/ListarLotesFeature.tsx
+// src/modules/lote/features/ListarLotesFeature.tsx
 import { useMemo, useState, useEffect } from "react";
 import { Button, Card, CardBody } from "@heroui/react";
 import { Plus } from "lucide-react";
@@ -10,8 +10,7 @@ import LoteCard from "../ui/LoteCard";
 import LoteMapList from "../widgets/LoteMapList";
 import LoteDeleteModal from "../ui/LoteDeleteModal";
 import { FiltrarLotesFeature } from "./FiltrarLotesFeature";
-import type { Lote, CreateLoteDTO } from "../model/types";
-
+import type { Lote } from "../model/types";
 import { loteService } from "../api/lotes.service";
 
 export default function ListarLotesFeature() {
@@ -22,30 +21,66 @@ export default function ListarLotesFeature() {
   const [lotesOrden, setLotesOrden] = useState<Lote[]>([]);
   const [filtered, setFiltered] = useState<Lote[]>([]);
 
-  // Inicializar orden al cargar lotes
+  // Inicializar orden al cargar los lotes
   useEffect(() => {
-    if (lotes.length && lotesOrden.length === 0) setLotesOrden(lotes);
-  }, [lotes, lotesOrden.length]);
-
-  // Actualización incremental
-  useEffect(() => {
-    if (!lotes.length) return;
-    setLotesOrden((prev) => {
-      const idsPrev = new Set(prev.map((l) => l.id_lote_pk));
-      const nuevos = lotes.filter((l) => !idsPrev.has(l.id_lote_pk));
-      return nuevos.length === 0 ? prev : [...prev, ...nuevos];
-    });
+    if (lotes.length) {
+      setLotesOrden(lotes);
+      setFiltered(lotes);
+    }
   }, [lotes]);
 
-  // Sincronizar filtro base
+  // WebSocket para actualizaciones en tiempo real
   useEffect(() => {
-    setFiltered(lotesOrden);
-  }, [lotesOrden]);
+    const socket = loteService.connect();
 
-  // Convertir lotes para el mapa
+    socket.on("lotes:created", (nuevoLote: Lote) =>
+      setLotesOrden((prev) => [...prev, nuevoLote])
+    );
+
+    socket.on("lotes:updated", (loteActualizado: Lote) =>
+      setLotesOrden((prev) =>
+        prev.map((l) =>
+          l.id_lote_pk === loteActualizado.id_lote_pk ? loteActualizado : l
+        )
+      )
+    );
+
+    socket.on("lotes:removed", ({ id }: { id: number }) =>
+      setLotesOrden((prev) => prev.filter((l) => l.id_lote_pk !== id))
+    );
+
+    socket.on("lotes:restored", (restaurado: Lote) =>
+      setLotesOrden((prev) => [...prev, restaurado])
+    );
+
+    return () => loteService.disconnect();
+  }, []);
+
+  // Manejo de eliminación
+  const { handleDelete, loading: deleting } = EliminarLoteFeature({
+    onDeleted: (id: number) =>
+      setLotesOrden((prev) => prev.filter((l) => l.id_lote_pk !== id)),
+  });
+
+  const submitDelete = async () => {
+    if (!rowDelete) return;
+    try {
+      await handleDelete(rowDelete.id_lote_pk);
+    } finally {
+      setOpenDelete(false);
+      setRowDelete(null);
+    }
+  };
+
+  const openDeleteConfirm = (row: Lote) => {
+    setRowDelete(row);
+    setOpenDelete(true);
+  };
+
+  // Datos del mapa basados en los lotes filtrados
   const lotesMap = useMemo(
     () =>
-      lotesOrden.map((l) => ({
+      (filtered.length > 0 ? filtered : lotesOrden).map((l) => ({
         id_lote_pk: l.id_lote_pk,
         nombre_lote: l.nombre_lote,
         coordenadas:
@@ -54,63 +89,8 @@ export default function ListarLotesFeature() {
             longitud: c.longitud_lote,
           })) || [],
       })),
-    [lotesOrden]
+    [filtered, lotesOrden]
   );
-
-  // 🔥 Integración WebSocket para actualizaciones en tiempo real
-  useEffect(() => {
-    const socket = loteService.connect();
-
-    socket.on("lotes:created", (nuevoLote: Lote) => {
-      setLotesOrden((prev) => [...prev, nuevoLote]);
-    });
-
-    socket.on("lotes:updated", (loteActualizado: Lote) => {
-      setLotesOrden((prev) =>
-        prev.map((l) =>
-          l.id_lote_pk === loteActualizado.id_lote_pk ? loteActualizado : l
-        )
-      );
-    });
-
-    socket.on("lotes:removed", ({ id }: { id: number }) => {
-      setLotesOrden((prev) => prev.filter((l) => l.id_lote_pk !== id));
-    });
-
-    socket.on("lotes:restored", (restaurado: Lote) => {
-      setLotesOrden((prev) => [...prev, restaurado]);
-    });
-
-    return () => {
-      loteService.disconnect();
-    };
-  }, []);
-
-  // 🔥 Lógica de eliminación usando feature
-  const { handleDelete, loading: deleting } = EliminarLoteFeature({
-    onDeleted: (id: number) =>
-      setLotesOrden((prev) => prev.filter((l) => l.id_lote_pk !== id)),
-  });
-
-  const submitDelete = async () => {
-    if (!rowDelete) return;
-    await handleDelete(rowDelete.id_lote_pk);
-    setOpenDelete(false);
-    setRowDelete(null);
-  };
-
-  const openDeleteConfirm = (row: Lote) => {
-    setRowDelete(row);
-    setOpenDelete(true);
-  };
-
-  // Filtrado mapa (según resultados del filtrador)
-  const filteredMap = useMemo(() => {
-    const base = filtered.length > 0 ? filtered : lotesOrden;
-    return lotesMap.filter((l) =>
-      base.some((f) => f.id_lote_pk === l.id_lote_pk)
-    );
-  }, [lotesMap, filtered, lotesOrden]);
 
   if (error) {
     return <p className="text-red-500">{error}</p>;
@@ -120,7 +100,7 @@ export default function ListarLotesFeature() {
     <div className="space-y-6 relative z-0">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold">Lista de lotes</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Lista de Lotes</h2>
         <Button
           as={Link}
           to="/lotes/crear"
@@ -140,12 +120,12 @@ export default function ListarLotesFeature() {
       {lotesMap.length > 0 && (
         <Card className="border border-gray-200 relative z-0 overflow-hidden">
           <CardBody className="h-[500px] p-0 rounded-lg">
-            <LoteMapList lotes={filteredMap} editable={false} />
+            <LoteMapList lotes={lotesMap} editable={false} />
           </CardBody>
         </Card>
       )}
 
-      {/* Lista de lotes */}
+      {/* Lista de Lotes */}
       {loading ? (
         <Card>
           <CardBody>Cargando lotes desde el servidor...</CardBody>

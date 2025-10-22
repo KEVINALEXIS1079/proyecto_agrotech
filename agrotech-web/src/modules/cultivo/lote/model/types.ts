@@ -1,6 +1,3 @@
-// ------------------------------
-// Lote
-// ------------------------------
 import type { Sublote } from "../../sublote/model/types";
 
 export interface Lote {
@@ -12,9 +9,6 @@ export interface Lote {
   delete_at: string | null;
 }
 
-// ------------------------------
-// DTO para creación de Lote
-// ------------------------------
 export interface CreateLoteDTO {
   nombre_lote: string;
   coordenadas_lote: { latitud_lote: number; longitud_lote: number }[];

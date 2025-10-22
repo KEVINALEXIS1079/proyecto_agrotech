@@ -158,14 +158,11 @@ export const TipoSensorTable: React.FC<Props> = ({
 
   const pages = Math.ceil(filteredItems.length / rowsPerPage) || 1;
 
-  // Tipo extendido para incluir índice visible
   type TipoSensorConIndex = TipoSensor & { visibleIndex?: number };
 
   const sortedItems: TipoSensorConIndex[] = React.useMemo(() => {
     if (!filteredItems) return [];
-
     let sorted = [...filteredItems].sort((a, b) => a.id_tipo_sensor - b.id_tipo_sensor);
-
     sorted.sort((a, b) => {
       const key = sortDescriptor.column as keyof TipoSensor;
       const first = a[key] ?? "";
@@ -173,10 +170,8 @@ export const TipoSensorTable: React.FC<Props> = ({
       const cmp = first < second ? -1 : first > second ? 1 : 0;
       return sortDescriptor.direction === "descending" ? -cmp : cmp;
     });
-
     const start = (page - 1) * rowsPerPage;
     const end = start + rowsPerPage;
-
     return sorted.slice(start, end).map((item, index) => ({
       ...item,
       visibleIndex: start + index + 1,
@@ -188,10 +183,8 @@ export const TipoSensorTable: React.FC<Props> = ({
       switch (columnKey) {
         case "id_tipo_sensor":
           return <span className="font-bold text-sm">{tipo.visibleIndex}</span>;
-
         case "nombre":
           return <span className="capitalize text-sm">{tipo.nombre}</span>;
-
         case "actions":
           return (
             <div className="relative flex items-center justify-end gap-3">
@@ -230,7 +223,6 @@ export const TipoSensorTable: React.FC<Props> = ({
               )}
             </div>
           );
-
         default:
           return tipo[columnKey as keyof TipoSensor];
       }
@@ -281,6 +273,10 @@ export const TipoSensorTable: React.FC<Props> = ({
           onClear={() => setFilterValue("")}
           onValueChange={setFilterValue}
         />
+
+        <Button onClick={onAdd} color="primary">
+          Agregar
+        </Button>
       </div>
 
       <div className="flex justify-between items-center">
