@@ -9,6 +9,7 @@ import { Usuario } from '../modules/usuario/usuarios/entities/usuario.entity';
 import { Rol } from '../modules/usuario/roles/entities/rol.entity';
 import { CreateAdminSeed } from '../database/seeds/create-admin.seed';
 import { CreateRolesSeed } from 'src/database/seeds/create-roles.seed';
+import { CreateAllSeeds } from 'src/database/seeds/create-all.seed';
 
 import { LotesModule } from '../modules/cultivo/lotes/lotes.module';
 import { SublotesModule } from '../modules/cultivo/sublotes/sublotes.module';
@@ -43,6 +44,10 @@ import { TipoActividadModule } from 'src/modules/actividad/tipo-actividad/tipo-a
 import { Permiso } from 'src/modules/permisos/entities/permiso.entity';
 import { PermisoModule } from 'src/modules/permiso-module/entities/permiso-module.entity';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { Lote } from 'src/modules/cultivo/lotes/entities/lote.entity';
+import { Sublote } from 'src/modules/cultivo/sublotes/entities/sublote.entity';
+import { Sensor } from 'src/modules/iot/sensores/entities/sensor.entity';
+import { TipoSensor } from 'src/modules/iot/tipo-sensor/entities/tipo-sensor.entity';
 
 @Module({
   imports: [
@@ -73,7 +78,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     }),
 
     //  Incluimos entidades necesarias
-    TypeOrmModule.forFeature([Usuario, Rol, Permiso, PermisoModule]),
+    TypeOrmModule.forFeature([Usuario, Rol, Permiso, PermisoModule, Lote, Sublote, TipoSensor, Sensor]),
 
     AuthModule,
     UsuariosModule, 
@@ -108,6 +113,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     AppService,
     CreateAdminSeed,
     CreateRolesSeed,
+    CreateAllSeeds
   ],
 })
 export class AppModule {}

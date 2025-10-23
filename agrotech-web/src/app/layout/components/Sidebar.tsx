@@ -151,7 +151,7 @@ export default function Sidebar({
               ]}
             />
             <SidebarItemWithChildren
-              to="/sublotes/crear"
+              to="/sublotes/listar"
               icon={<Boxes className="h-5 w-5" />}
               label="Sublotes"
               isOpen={openSublotes}
@@ -183,7 +183,7 @@ export default function Sidebar({
 
         {/* IOT */}
         <SidebarItemWithChildren
-          to="/iot"
+          to="/SensoresLivePage"
           icon={<Cpu className="h-5 w-5" />}
           label="IoT"
           isOpen={openIot}

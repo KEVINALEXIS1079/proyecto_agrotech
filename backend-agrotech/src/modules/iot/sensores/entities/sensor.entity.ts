@@ -5,16 +5,18 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { TipoSensor } from 'src/modules/iot/tipo-sensor/entities/tipo-sensor.entity';
 import { Lote } from 'src/modules/cultivo/lotes/entities/lote.entity';
 
 @Entity({ name: 'sensores' })
+@Unique(['nombre_sensor'])
 export class Sensor {
   @PrimaryGeneratedColumn()
   id_sensor_pk: number;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, unique: true })
   nombre_sensor: string;
 
   @Column({ type: 'varchar', length: 255 })
@@ -64,5 +66,5 @@ export class Sensor {
   // Soft delete
   // ------------------------
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
-  delete_at: Date;
+  delete_at: Date|null;
 }
