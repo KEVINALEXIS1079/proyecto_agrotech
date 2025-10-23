@@ -1,22 +1,20 @@
 import {
   WebSocketGateway,
+  WebSocketServer,
   SubscribeMessage,
   MessageBody,
-  WebSocketServer,
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
-import { UseGuards } from '@nestjs/common';
 import { TipoSensorService } from '../services/tipo-sensor.service';
 import { CreateTipoSensorDto } from '../dto/create-tipo-sensor.dto';
 import { UpdateTipoSensorDto } from '../dto/update-tipo-sensor.dto';
-import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
-import { PermisosGuard } from 'src/common/guard/permisos.guard';
-import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
+/**
+ * Gateway para comunicación en tiempo real de TipoSensor.
+ * Emite eventos a los clientes cuando ocurren cambios en los tipos de sensor.
+ */
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
+  cors: { origin: '*' },
   namespace: 'tipo-sensor',
 })
 export class TipoSensorGateway {
@@ -25,43 +23,48 @@ export class TipoSensorGateway {
 
   constructor(private readonly tipoSensorService: TipoSensorService) {}
 
-  public notifyChanges(): void {
-    this.server.emit('tipo-sensor:changes-detected');
+  /**
+   * Notifica a todos los clientes conectados que hubo un cambio en los tipos de sensor.
+   * @param action - tipo de acción ('create' | 'update' | 'delete' | 'restore')
+   * @param payload - datos opcionales del cambio
+   */
+  public notifyChanges(action: string, payload?: any): void {
+    this.server.emit('tipo-sensor:changes-detected', {
+      action,
+      data: payload || null,
+      timestamp: new Date(),
+    });
   }
 
+  /** Crear tipo de sensor (evento socket) */
   @SubscribeMessage('tipo-sensor:create')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:tipo-sensor:create')
   async create(@MessageBody() dto: CreateTipoSensorDto) {
     const result = await this.tipoSensorService.create(dto);
-    this.notifyChanges();
+    this.notifyChanges('create', result);
     return result;
   }
 
+  /** Actualizar tipo de sensor (evento socket) */
   @SubscribeMessage('tipo-sensor:update')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:tipo-sensor:update')
   async update(@MessageBody() data: { id: number; dto: UpdateTipoSensorDto }) {
     const result = await this.tipoSensorService.update(data.id, data.dto);
-    this.notifyChanges();
+    this.notifyChanges('update', result);
     return result;
   }
 
+  /** Eliminar tipo de sensor (evento socket) */
   @SubscribeMessage('tipo-sensor:remove')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:tipo-sensor:delete')
   async remove(@MessageBody('id') id: number) {
     const result = await this.tipoSensorService.remove(id);
-    this.notifyChanges();
+    this.notifyChanges('delete', { id });
     return result;
   }
 
+  /** Restaurar tipo de sensor (evento socket) */
   @SubscribeMessage('tipo-sensor:restore')
-  @UseGuards(JwtAuthGuard, PermisosGuard)
-  @PermisoRequerido('iot:tipo-sensor:update')
   async restore(@MessageBody('id') id: number) {
     const result = await this.tipoSensorService.restore(id);
-    this.notifyChanges();
+    this.notifyChanges('restore', { id });
     return result;
   }
 }

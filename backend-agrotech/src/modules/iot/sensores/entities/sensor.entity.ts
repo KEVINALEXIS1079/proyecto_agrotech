@@ -7,7 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { TipoSensor } from 'src/modules/iot/tipo-sensor/entities/tipo-sensor.entity';
-import { Cultivo } from 'src/modules/cultivo/cultivos/entities/cultivo.entity';
+import { Lote } from 'src/modules/cultivo/lotes/entities/lote.entity';
 
 @Entity({ name: 'sensores' })
 export class Sensor {
@@ -17,36 +17,52 @@ export class Sensor {
   @Column({ type: 'varchar', length: 255 })
   nombre_sensor: string;
 
-  @Column({ type: 'float' })
-  valor_minimo;
+  @Column({ type: 'varchar', length: 255 })
+  broker_sensor: string;
+
+  @Column({ type: 'int' })
+  puerto_sensor: number;
+
+  @Column({ type: 'varchar', length: 255 })
+  topico_sensor: string;
 
   @Column({ type: 'float' })
-  valor_maximo;
+  valor_minimo_sensor: number;
 
-  @Column({ type: 'date' })
-  fecha_inicio_sensor: Date;
-
-  @Column({ type: 'date' })
-  fecha_fin_sensor: Date;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  imagen_sensor: string;
+  @Column({ type: 'float' })
+  valor_maximo_sensor: number;
 
   @Column({ type: 'boolean', default: true })
   activo: boolean;
 
-  // Relación con Cultivo
-  @ManyToOne(() => Cultivo, (cultivo) => cultivo.sensores, { nullable: false })
-  @JoinColumn({ name: 'id_cultivo_fk' })
-  cultivo: Cultivo;
+  // ------------------------
+  // Último valor medido
+  // ------------------------
+  @Column({ type: 'float', nullable: true })
+  ultimo_valor: number;
 
+  @Column({ type: 'timestamp', nullable: true })
+  ultima_medicion: Date;
+
+  // ------------------------
+  // Relación con Lote
+  // ------------------------
+  @ManyToOne(() => Lote, (lote) => lote.sensores, { nullable: false })
+  @JoinColumn({ name: 'id_lote_fk' })
+  lote: Lote;
+
+  // ------------------------
   // Relación con TipoSensor
+  // ------------------------
   @ManyToOne(() => TipoSensor, (tipoSensor) => tipoSensor.sensores, {
     nullable: false,
   })
   @JoinColumn({ name: 'id_tipo_sensor_fk' })
   tipo_sensor: TipoSensor;
 
+  // ------------------------
+  // Soft delete
+  // ------------------------
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
   delete_at: Date;
 }

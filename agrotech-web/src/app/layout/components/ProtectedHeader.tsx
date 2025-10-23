@@ -10,7 +10,7 @@ import {
   User as UserCard,
   Avatar,
 } from "@heroui/react";
-import { Search, Settings, UserRound, LogOut, Mail } from "lucide-react";
+import { Search, UserRound, LogOut, Mail } from "lucide-react";
 import HeaderNotifications from "./HeaderNotifications";
 
 type Notification = { id: string; title: string; body?: string; unread?: boolean; time?: string };
@@ -71,14 +71,6 @@ export default function ProtectedHeader({
               <Chip size="sm" variant="flat" className="mt-2">
                 {user.role ?? "Invitado"}
               </Chip>
-            </DropdownItem>
-
-            <DropdownItem
-              key="settings"
-              startContent={<Settings className="h-4 w-4" />}
-              onPress={() => navigate("/perfil/ajustes")}
-            >
-              Configuración
             </DropdownItem>
 
             <DropdownItem

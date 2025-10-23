@@ -1,92 +1,38 @@
-import {
-  IsString,
-  IsDateString,
-  IsInt,
-  IsPositive,
-  IsOptional,
-  IsBoolean,
-} from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+// src/modules/iot/sensores/dto/create-sensor.dto.ts
+import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateSensorDto {
-  @ApiProperty({
-    description: 'Nombre del sensor',
-    examples: ['Sensor de humedad', 'Sensor de temperatura'],
-  })
-  @IsString({ message: 'El nombre del sensor debe ser texto' })
+  @IsString()
   nombre_sensor: string;
 
-  @ApiProperty({
-    description: ' El valor minimo debe ser un numero',
-    example: 20,
-  })
-  @IsInt({ message: ' El valor minimo debe ser un numero' })
-  valor_minimo: number;
-
-  @ApiProperty({
-    description: ' El valor maximo debe ser un numero',
-    example: 20,
-  })
-  @IsInt({ message: ' El valor maximo debe ser un numero' })
-  valor_maximo: number;
-
-  @ApiProperty({
-    description: 'Fecha de inicio de funcionamiento del sensor',
-    examples: ['2025-01-15', '2025-06-01'],
-  })
-  @IsDateString(
-    {},
-    {
-      message:
-        'La fecha de instalación debe ser una fecha válida, con formato Año/Mes/día',
-    },
-  )
-  fecha_inicio_sensor: string;
-
-  @ApiProperty({
-    description: 'Fecha de finalización del sensor',
-    examples: ['2026-01-15', '2025-12-31'],
-  })
-  @IsDateString(
-    {},
-    {
-      message:
-        'La fecha de fin debe ser una fecha válida, con formato Año/Mes/día',
-    },
-  )
-  fecha_fin_sensor: string;
-
-  @ApiProperty({
-    description: 'ID del cultivo asociado',
-    examples: [1, 5, 12],
-  })
-  @IsInt({ message: 'El id del cultivo debe ser un número entero' })
-  @IsPositive()
-  id_cultivo_fk: number;
-
-  @ApiProperty({
-    description: 'ID del tipo de sensor (ej. humedad, temperatura, pH)',
-    examples: [2, 3],
-  })
-  @IsInt({ message: 'El id del tipo de sensor debe ser un número entero' })
-  @IsPositive()
-  id_tipo_sensor_fk: number;
-
-  @ApiProperty({
-    description: 'URL o nombre de archivo de la imagen del sensor',
-    example: 'uploads/sensores/sensor1.jpg',
-    required: false,
-  })
-  @IsOptional()
   @IsString()
-  imagen_sensor?: string;
+  broker_sensor: string;
 
-  @ApiProperty({
-    description: 'Estado del sensor (activo/inactivo)',
-    example: true,
-    required: false,
-  })
-  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  puerto_sensor: number;
+
+  @IsString()
+  topico_sensor: string;
+
+  @IsNumber()
+  @Type(() => Number)
+  valor_minimo_sensor: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  valor_maximo_sensor: number;
+
   @IsBoolean()
-  activo?: boolean;
+  @IsOptional()
+  activo?: boolean = true;
+
+  @IsNumber()
+  @Type(() => Number)
+  id_lote_fk: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  id_tipo_sensor_fk: number;
 }

@@ -1,3 +1,4 @@
+// src/modules/iot/sensores/sensores.controller.ts
 import { 
   Controller,
   Get,
@@ -8,8 +9,6 @@ import {
   Delete,
   ParseIntPipe,
   UseGuards,
-  UseInterceptors,
-  UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
 import { SensoresService } from '../services/sensores.service';
@@ -18,14 +17,16 @@ import { UpdateSensorDto } from '../dto/update-sensor.dto';
 import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 import { PermisosGuard } from 'src/common/guard/permisos.guard';
 import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
+import { SensoresGateway } from '../gateways/sensor.gateway';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
-import { CustomFileInterceptor } from 'src/common/services/uploads/custom-file.interceptor';
-import { SensoresGateway } from '../gateways/sensor.gateway';
+import { SensoresDocs } from '../docs/sensores.docs';
 
 @ApiTags('Sensores')
 @ApiBearerAuth('access-token')
@@ -42,17 +43,11 @@ export class SensoresController {
   @Post()
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:sensores:create')
-  @UseInterceptors(CustomFileInterceptor.create('imagen_sensor', 'sensores'))
-  async create(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() dto: CreateSensorDto,
-  ) {
-    if (file) {
-      dto.imagen_sensor = file.path.replace(/\\/g, '/');
-    }
-
+  @ApiOperation({ summary: SensoresDocs.create.summary, description: SensoresDocs.create.description })
+  @ApiBody({ type: CreateSensorDto })
+  @ApiResponse(SensoresDocs.create.response)
+  async create(@Body() dto: CreateSensorDto) {
     const sensor = await this.sensoresService.create(dto);
-    // Emitir a todos los clientes conectados
     this.sensoresGateway.server.emit('sensores:created', sensor);
     return sensor;
   }
@@ -63,8 +58,8 @@ export class SensoresController {
   @Get()
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:sensores:read')
-  @ApiOperation({ summary: 'Obtener todos los sensores' })
-  @ApiResponse({ status: 200, description: 'Lista de sensores' })
+  @ApiOperation({ summary: SensoresDocs.findAll.summary, description: SensoresDocs.findAll.description })
+  @ApiResponse(SensoresDocs.findAll.response)
   findAll() {
     return this.sensoresService.findAll();
   }
@@ -75,6 +70,8 @@ export class SensoresController {
   @Get('deleted')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:sensores:read')
+  @ApiOperation({ summary: SensoresDocs.findAllDeleted.summary, description: SensoresDocs.findAllDeleted.description })
+  @ApiResponse(SensoresDocs.findAllDeleted.response)
   findAllDeleted() {
     return this.sensoresService.findAllDeleted();
   }
@@ -85,6 +82,9 @@ export class SensoresController {
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:sensores:read')
+  @ApiOperation({ summary: SensoresDocs.findOne.summary, description: SensoresDocs.findOne.description })
+  @ApiParam({ name: 'id', description: SensoresDocs.findOne.params.id })
+  @ApiResponse(SensoresDocs.findOne.response)
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.sensoresService.findOne(id);
   }
@@ -95,22 +95,19 @@ export class SensoresController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:sensores:update')
-  @UseInterceptors(CustomFileInterceptor.create('imagen_sensor', 'sensores'))
+  @ApiOperation({ summary: SensoresDocs.update.summary, description: SensoresDocs.update.description })
+  @ApiParam({ name: 'id', description: SensoresDocs.update.params.id })
+  @ApiBody({ type: UpdateSensorDto })
+  @ApiResponse(SensoresDocs.update.response)
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile() file: Express.Multer.File,
     @Body() dto: UpdateSensorDto,
   ) {
     if (!dto || Object.keys(dto).length === 0) {
       throw new BadRequestException('Se requiere al menos un campo para actualizar');
     }
 
-    if (file) {
-      dto.imagen_sensor = file.path.replace(/\\/g, '/');
-    }
-
     const updated = await this.sensoresService.update(id, dto);
-    // Emitir a todos los clientes conectados
     this.sensoresGateway.server.emit('sensores:updated', updated);
     return updated;
   }
@@ -121,11 +118,13 @@ export class SensoresController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:sensores:delete')
+  @ApiOperation({ summary: SensoresDocs.remove.summary, description: SensoresDocs.remove.description })
+  @ApiParam({ name: 'id', description: SensoresDocs.remove.params.id })
+  @ApiResponse(SensoresDocs.remove.response)
   async remove(@Param('id', ParseIntPipe) id: number) {
-    const result = await this.sensoresService.remove(id);
-    // Emitir a todos los clientes conectados
-    this.sensoresGateway.server.emit('sensores:removed', { id, message: result });
-    return result;
+    await this.sensoresService.remove(id);
+    this.sensoresGateway.server.emit('sensores:removed', { id });
+    return { message: 'Sensor eliminado', id };
   }
 
   // =========================
@@ -134,10 +133,12 @@ export class SensoresController {
   @Patch('restore/:id')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:sensores:update')
+  @ApiOperation({ summary: SensoresDocs.restore.summary, description: SensoresDocs.restore.description })
+  @ApiParam({ name: 'id', description: SensoresDocs.restore.params.id })
+  @ApiResponse(SensoresDocs.restore.response)
   async restore(@Param('id', ParseIntPipe) id: number) {
-    const result = await this.sensoresService.restore(id);
-    // Emitir a todos los clientes conectados
-    this.sensoresGateway.server.emit('sensores:restored', { id, message: result });
-    return result;
+    const restored = await this.sensoresService.restore(id);
+    this.sensoresGateway.server.emit('sensores:restored', restored);
+    return restored;
   }
 }

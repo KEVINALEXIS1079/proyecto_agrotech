@@ -47,10 +47,6 @@ export class Cultivo {
   @JoinColumn({ name: 'id_tipo_cultivo_fk' })
   tipoCultivo: TipoCultivo;
 
-  // Relación con Sensores
-  @OneToMany(() => Sensor, (sensor) => sensor.cultivo)
-  sensores: Sensor[];
-
   // Relación con EPAs
   @OneToMany(() => Epa, (epa) => epa.cultivo)
   epas: Epa[];

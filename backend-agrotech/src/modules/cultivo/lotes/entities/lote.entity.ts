@@ -6,6 +6,8 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Sublote } from 'src/modules/cultivo/sublotes/entities/sublote.entity';
+import { Sensor } from 'src/modules/iot/sensores/entities/sensor.entity';
+
 @Entity({ name: 'lotes' })
 export class Lote {
   @PrimaryGeneratedColumn()
@@ -23,6 +25,10 @@ export class Lote {
 
   @OneToMany(() => Sublote, (sublote) => sublote.lote)
   sublotes: Sublote[];
+
+  // Relación con sensores generales
+  @OneToMany(() => Sensor, (sensor) => sensor.lote)
+  sensores: Sensor[];
 
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
   delete_at: Date | null;

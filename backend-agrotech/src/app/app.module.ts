@@ -31,7 +31,7 @@ import { EvidenciasModule } from '../modules/actividad/evidencias/evidencias.mod
 import { UsuarioActividadModule } from '../modules/actividad/usuario-actividad/usuario-actividad.module';
 import { AuthModule } from '../modules/authentication/auth/auth.module';
 
-// 👇 IMPORT CORREGIDO: este es el módulo que contiene tu PermisosController
+//  IMPORT CORREGIDO: este es el módulo que contiene tu PermisosController
 import { PermisosModule } from 'src/modules/permisos/permisos.module';
 
 import { MovimientoInsumoModule } from '../modules/inventario/movimiento-insumo/movimiento-insumo.module';
@@ -42,9 +42,11 @@ import { VentasModule } from 'src/modules/finanzas/ventas/ventas.module';
 import { TipoActividadModule } from 'src/modules/actividad/tipo-actividad/tipo-actividad.module';
 import { Permiso } from 'src/modules/permisos/entities/permiso.entity';
 import { PermisoModule } from 'src/modules/permiso-module/entities/permiso-module.entity';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

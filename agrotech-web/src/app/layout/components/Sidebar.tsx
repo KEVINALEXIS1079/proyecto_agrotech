@@ -12,7 +12,6 @@ import {
   Users,
   ListChecks,
   ChevronRight,
-  LogOut,
   ToggleRight,
 } from "lucide-react";
 
@@ -25,7 +24,6 @@ export type SidebarProps = {
 
 export default function Sidebar({
   className = "",
-  onLogout,
   accordion = true,
 }: SidebarProps) {
   const location = useLocation();
@@ -193,7 +191,9 @@ export default function Sidebar({
             closeOthers("iot");
             setOpenIot((v) => !v);
           }}
-          childrenLinks={[]}
+          childrenLinks={[
+             { to: "/SensoresLivePage", label: "Monitoreo iot" },
+          ]}
         />
 
         {/* FINANZAS */}
@@ -283,25 +283,6 @@ export default function Sidebar({
           ]}
         />
       </nav>
-
-      {/* CERRAR SESIÓN */}
-      <div className="px-2 pt-1">
-        <button
-          type="button"
-          className="w-full flex items-center gap-2 h-10 px-2 rounded-md text-foreground-600 hover:bg-default-100 transition-colors disabled:opacity-50"
-          onClick={onLogout}
-          disabled={!onLogout}
-          aria-label="Cerrar sesión"
-          title="Cerrar sesión"
-        >
-          <span className="grid place-items-center h-10 w-10 shrink-0">
-            <LogOut className="h-5 w-5" />
-          </span>
-          <span className="ml-0 text-sm whitespace-nowrap overflow-hidden w-0 opacity-0 transition-all duration-200 group-hover/sidebar:ml-2 group-hover/sidebar:w-40 group-hover/sidebar:opacity-100">
-            Cerrar sesión
-          </span>
-        </button>
-      </div>
     </aside>
   );
 }

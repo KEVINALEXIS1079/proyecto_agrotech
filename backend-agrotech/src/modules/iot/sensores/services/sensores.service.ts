@@ -1,139 +1,188 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+// src/modules/iot/sensores/services/sensores.service.ts
+import { Injectable, NotFoundException, Logger, OnModuleInit, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Sensor } from '../entities/sensor.entity';
 import { CreateSensorDto } from '../dto/create-sensor.dto';
 import { UpdateSensorDto } from '../dto/update-sensor.dto';
-import { Cultivo } from 'src/modules/cultivo/cultivos/entities/cultivo.entity';
 import { TipoSensor } from '../../tipo-sensor/entities/tipo-sensor.entity';
+import { Lote } from 'src/modules/cultivo/lotes/entities/lote.entity';
+import { MqttService } from 'src/common/services/mqtt/services/mqtt.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
-export class SensoresService {
+export class SensoresService implements OnModuleInit {
+  private readonly logger = new Logger(SensoresService.name);
+
   constructor(
     @InjectRepository(Sensor)
     private readonly sensorRepository: Repository<Sensor>,
 
-    @InjectRepository(Cultivo)
-    private readonly cultivoRepository: Repository<Cultivo>,
-
     @InjectRepository(TipoSensor)
     private readonly tipoSensorRepository: Repository<TipoSensor>,
+
+    @InjectRepository(Lote)
+    private readonly loteRepository: Repository<Lote>,
+
+    @Inject(forwardRef(() => MqttService))
+    private readonly mqttService: MqttService,
+
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  // Ahora devuelve el objeto Sensor
+  async onModuleInit() {
+    const sensores = await this.sensorRepository.find({
+      where: { activo: true },
+      relations: ['tipo_sensor', 'lote'],
+    });
+
+    for (const sensor of sensores) {
+      this.logger.log(`Conectando sensor activo al MQTT: ${sensor.nombre_sensor}`);
+      await this.mqttService.connectSensor({
+        id_sensor_pk: sensor.id_sensor_pk,
+        broker: sensor.broker_sensor,
+        puerto: sensor.puerto_sensor,
+        topico: sensor.topico_sensor,
+        onMessage: async (valor: number) => {
+          const updatedSensor = await this.saveSensorData({ id_sensor_pk: sensor.id_sensor_pk, valor });
+          // Emitir evento para el gateway
+          this.eventEmitter.emit('sensor.updated', updatedSensor);
+        },
+      });
+    }
+  }
+
   async create(createSensorDto: CreateSensorDto): Promise<Sensor> {
-    const cultivo = await this.cultivoRepository.findOneBy({
-      id_cultivo_pk: createSensorDto.id_cultivo_fk,
-    });
-    if (!cultivo) throw new NotFoundException('Cultivo no encontrado');
+    const { id_lote_fk, id_tipo_sensor_fk, ...rest } = createSensorDto;
 
-    const tipo_sensor = await this.tipoSensorRepository.findOneBy({
-      id_tipo_sensor_pk: createSensorDto.id_tipo_sensor_fk,
-    });
-    if (!tipo_sensor)
-      throw new NotFoundException('Tipo de sensor no encontrado');
+    const lote = await this.loteRepository.findOneBy({ id_lote_pk: id_lote_fk });
+    if (!lote) throw new NotFoundException('Lote no encontrado');
 
-    const existeNombre = await this.sensorRepository.findOne({
-      where: { nombre_sensor: createSensorDto.nombre_sensor },
+    const tipoSensor = await this.tipoSensorRepository.findOneBy({ id_tipo_sensor_pk: id_tipo_sensor_fk });
+    if (!tipoSensor) throw new NotFoundException('Tipo de sensor no encontrado');
+
+    const sensor = this.sensorRepository.create({
+      ...rest,
+      lote,
+      tipo_sensor: tipoSensor,
     });
-    if (existeNombre) {
-      throw new BadRequestException(`El nombre del sensor ya existe`);
+
+    const savedSensor = await this.sensorRepository.save(sensor);
+
+    if (savedSensor.activo) {
+      await this.mqttService.connectSensor({
+        id_sensor_pk: savedSensor.id_sensor_pk,
+        broker: savedSensor.broker_sensor,
+        puerto: savedSensor.puerto_sensor,
+        topico: savedSensor.topico_sensor,
+        onMessage: async (valor: number) => {
+          const updatedSensor = await this.saveSensorData({ id_sensor_pk: savedSensor.id_sensor_pk, valor });
+          this.eventEmitter.emit('sensor.updated', updatedSensor);
+        },
+      });
     }
 
-    const nuevoSensor = this.sensorRepository.create({
-      ...createSensorDto,
-      cultivo,
-      tipo_sensor,
-    });
-
-    return this.sensorRepository.save(nuevoSensor);
+    return savedSensor;
   }
 
   async findAll(): Promise<Sensor[]> {
-    const sensores = await this.sensorRepository.find({
-      where: { delete_at: IsNull() },
-      relations: ['cultivo', 'tipo_sensor'],
-    });
-    return sensores;
+    return this.sensorRepository.find({ relations: ['tipo_sensor', 'lote'] });
   }
 
-  async findAllDeleted(): Promise<Sensor[]> {
-    const sensores = await this.sensorRepository.find({
-      where: { delete_at: Not(IsNull()) },
-      relations: ['cultivo', 'tipo_sensor'],
-      withDeleted: true,
-    });
-    return sensores;
-  }
-
-  async findOne(id_sensor_pk: number): Promise<Sensor> {
+  async findOne(id: number): Promise<Sensor> {
     const sensor = await this.sensorRepository.findOne({
-      where: { id_sensor_pk },
-      relations: ['cultivo', 'tipo_sensor'],
-      withDeleted: true,
+      where: { id_sensor_pk: id },
+      relations: ['tipo_sensor', 'lote'],
     });
-    if (!sensor)
-      throw new NotFoundException(
-        `Sensor con ID ${id_sensor_pk} no encontrado`,
-      );
+    if (!sensor) throw new NotFoundException('Sensor no encontrado');
     return sensor;
   }
 
-  // Ahora devuelve el objeto Sensor
-  async update(id_sensor_pk: number, dto: UpdateSensorDto): Promise<Sensor> {
+  async update(id: number, updateSensorDto: UpdateSensorDto): Promise<Sensor> {
+    const sensor = await this.findOne(id);
+
+    if (updateSensorDto.id_lote_fk) {
+      const lote = await this.loteRepository.findOneBy({ id_lote_pk: updateSensorDto.id_lote_fk });
+      if (!lote) throw new NotFoundException('Lote no encontrado');
+      sensor.lote = lote;
+    }
+
+    if (updateSensorDto.id_tipo_sensor_fk) {
+      const tipoSensor = await this.tipoSensorRepository.findOneBy({ id_tipo_sensor_pk: updateSensorDto.id_tipo_sensor_fk });
+      if (!tipoSensor) throw new NotFoundException('Tipo de sensor no encontrado');
+      sensor.tipo_sensor = tipoSensor;
+    }
+
+    Object.assign(sensor, updateSensorDto);
+
+    const updatedSensor = await this.sensorRepository.save(sensor);
+
+    if (updatedSensor.activo) {
+      await this.mqttService.connectSensor({
+        id_sensor_pk: updatedSensor.id_sensor_pk,
+        broker: updatedSensor.broker_sensor,
+        puerto: updatedSensor.puerto_sensor,
+        topico: updatedSensor.topico_sensor,
+        onMessage: async (valor: number) => {
+          const s = await this.saveSensorData({ id_sensor_pk: updatedSensor.id_sensor_pk, valor });
+          this.eventEmitter.emit('sensor.updated', s);
+        },
+      });
+    } else {
+      await this.mqttService.disconnectSensor(updatedSensor.id_sensor_pk);
+    }
+
+    return updatedSensor;
+  }
+
+  async remove(id: number): Promise<void> {
+    const sensor = await this.findOne(id);
+    await this.mqttService.disconnectSensor(sensor.id_sensor_pk);
+    await this.sensorRepository.softRemove(sensor);
+  }
+
+  async restore(id: number): Promise<Sensor> {
+    const sensor = await this.sensorRepository.findOne({
+      where: { id_sensor_pk: id },
+      withDeleted: true,
+      relations: ['tipo_sensor', 'lote'],
+    });
+    if (!sensor) throw new NotFoundException('Sensor no encontrado para restaurar');
+
+    await this.sensorRepository.recover(sensor);
+
+    if (sensor.activo) {
+      await this.mqttService.connectSensor({
+        id_sensor_pk: sensor.id_sensor_pk,
+        broker: sensor.broker_sensor,
+        puerto: sensor.puerto_sensor,
+        topico: sensor.topico_sensor,
+        onMessage: async (valor: number) => {
+          const s = await this.saveSensorData({ id_sensor_pk: sensor.id_sensor_pk, valor });
+          this.eventEmitter.emit('sensor.updated', s);
+        },
+      });
+    }
+
+    return sensor;
+  }
+
+  async findAllDeleted(): Promise<Sensor[]> {
+    return this.sensorRepository.createQueryBuilder('sensor')
+      .withDeleted()
+      .leftJoinAndSelect('sensor.tipo_sensor', 'tipo_sensor')
+      .leftJoinAndSelect('sensor.lote', 'lote')
+      .where('sensor.deletedAt IS NOT NULL')
+      .getMany();
+  }
+
+  async saveSensorData({ id_sensor_pk, valor }: { id_sensor_pk: number; valor: number }) {
     const sensor = await this.findOne(id_sensor_pk);
+    if (!sensor) throw new NotFoundException('Sensor no encontrado');
 
-    if (dto.id_cultivo_fk) {
-      const cultivo = await this.cultivoRepository.findOneBy({
-        id_cultivo_pk: dto.id_cultivo_fk,
-      });
-      if (!cultivo) throw new NotFoundException('Cultivo no encontrado');
-      sensor.cultivo = cultivo;
-    }
+    sensor.ultimo_valor = valor;
+    sensor.ultima_medicion = new Date();
 
-    if (dto.id_tipo_sensor_fk) {
-      const tipo_sensor = await this.tipoSensorRepository.findOneBy({
-        id_tipo_sensor_pk: dto.id_tipo_sensor_fk,
-      });
-      if (!tipo_sensor)
-        throw new NotFoundException('Tipo de sensor no encontrado');
-      sensor.tipo_sensor = tipo_sensor;
-    }
-
-    if (dto.nombre_sensor && dto.nombre_sensor !== sensor.nombre_sensor) {
-      const existeNombre = await this.sensorRepository.findOne({
-        where: { nombre_sensor: dto.nombre_sensor },
-      });
-      if (existeNombre) {
-        throw new BadRequestException(
-          `El nombre del sensor '${dto.nombre_sensor}' ya existe`,
-        );
-      }
-    }
-
-    Object.assign(sensor, dto);
     return this.sensorRepository.save(sensor);
-  }
-
-  async remove(id_sensor_pk: number): Promise<string> {
-    const result = await this.sensorRepository.softDelete(id_sensor_pk);
-    if (result.affected === 0)
-      throw new NotFoundException(
-        `Sensor con ID ${id_sensor_pk} no encontrado`,
-      );
-    return `Sensor con ID ${id_sensor_pk} eliminado correctamente`;
-  }
-
-  async restore(id_sensor_pk: number): Promise<string> {
-    const result = await this.sensorRepository.restore(id_sensor_pk);
-    if (result.affected === 0)
-      throw new NotFoundException(
-        `Sensor con ID ${id_sensor_pk} no encontrado`,
-      );
-    return `Sensor con ID ${id_sensor_pk} restaurado correctamente`;
   }
 }

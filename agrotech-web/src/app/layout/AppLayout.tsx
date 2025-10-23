@@ -16,7 +16,7 @@ import {
   User as UserCard,
   Divider,
 } from "@heroui/react";
-import { Search, Bell, LogOut, Settings, UserRound, Mail } from "lucide-react";
+import { Search, Bell, LogOut, UserRound, Mail } from "lucide-react";
 
 /** Lee el usuario guardado tras el login */
 function getCurrentUser() {
@@ -150,9 +150,6 @@ export default function AppLayout() {
                 </Chip>
               </DropdownItem>
 
-              <DropdownItem key="settings" startContent={<Settings className="h-4 w-4" />}>
-                Configuración
-              </DropdownItem>
               <DropdownItem key="profile-btn" startContent={<UserRound className="h-4 w-4" />}>
                 Mi perfil
               </DropdownItem>

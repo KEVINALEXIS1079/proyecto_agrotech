@@ -13,30 +13,70 @@ export class CreateTiposSensorSeed implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    const tipos = ['ph', 'pluviometro', 'humedad'];
+    const tiposBase: Partial<TipoSensor>[] = [
+      {
+        nombre_tipo_sensor: 'Temperatura',
+        unidades_tipo_sensor: '°C',
+        decimales_tipo_sensor: 2,
+        imagen_tipo_sensor:
+          'https://cdn-icons-png.flaticon.com/512/1684/1684375.png',
+      },
+      {
+        nombre_tipo_sensor: 'Humedad',
+        unidades_tipo_sensor: '%',
+        decimales_tipo_sensor: 1,
+        imagen_tipo_sensor:
+          'https://cdn-icons-png.flaticon.com/512/728/728093.png',
+      },
+      {
+        nombre_tipo_sensor: 'pH',
+        unidades_tipo_sensor: 'pH',
+        decimales_tipo_sensor: 2,
+        imagen_tipo_sensor:
+          'https://cdn-icons-png.flaticon.com/512/4837/4837832.png',
+      },
+      {
+        nombre_tipo_sensor: 'Pluviómetro',
+        unidades_tipo_sensor: 'mm',
+        decimales_tipo_sensor: 1,
+        imagen_tipo_sensor:
+          'https://cdn-icons-png.flaticon.com/512/1113/1113769.png',
+      },
+      {
+        nombre_tipo_sensor: 'Luminosidad',
+        unidades_tipo_sensor: 'lx',
+        decimales_tipo_sensor: 0,
+        imagen_tipo_sensor:
+          'https://cdn-icons-png.flaticon.com/512/869/869869.png',
+      },
+    ];
 
-    for (const nombre of tipos) {
+    for (const tipo of tiposBase) {
       const existe = await this.tipoSensorRepo.findOne({
-        where: { nombre_tipo_sensor: nombre },
+        where: { nombre_tipo_sensor: tipo.nombre_tipo_sensor },
       });
 
       if (!existe) {
         try {
-          const nuevoTipo = this.tipoSensorRepo.create({
-            nombre_tipo_sensor: nombre,
-          });
+          const nuevoTipo = this.tipoSensorRepo.create(tipo);
           await this.tipoSensorRepo.save(nuevoTipo);
-          this.logger.log(`Tipo de sensor creado: ${nombre}`);
+          this.logger.log(`✅ Tipo de sensor creado: ${tipo.nombre_tipo_sensor}`);
         } catch (error) {
           if (error.code === '23505') {
-            // Código de error de Postgres por violación de UNIQUE constraint
             this.logger.warn(
-              `El tipo de sensor "${nombre}" ya existía (duplicado).`,
+              `  El tipo de sensor "${tipo.nombre_tipo_sensor}" ya existía.`,
             );
           } else {
-            throw error;
+            this.logger.error(
+              ` Error al crear el tipo de sensor "${tipo.nombre_tipo_sensor}":`,
+              error.message,
+            );
           }
         }
+      } else {
+        this.logger.verbose(
+          `  Tipo de sensor "${tipo.nombre_tipo_sensor}" ya existe, omitido.`,
+        );
       }
     }
   }

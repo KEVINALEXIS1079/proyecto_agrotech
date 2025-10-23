@@ -7,7 +7,6 @@ import {
   injectHtmlTitleMiddleware,
 } from './configs/swagger.config';
 import { apiReference } from '@scalar/nestjs-api-reference';
-import { setupAsyncApi } from './configs/asyncapi.config';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
@@ -70,11 +69,6 @@ async function bootstrap() {
   );
 
   // =======================
-  // CONFIGURAR ASYNCAPI (WebSockets)
-  // =======================
-  await setupAsyncApi(app);
-
-  // =======================
   // INICIAR SERVIDOR
   // =======================
   const PORT = 4000;
@@ -82,7 +76,6 @@ async function bootstrap() {
 
   console.log(` REST Docs (Scalar): http://localhost:${PORT}/api/v1/docs`);
   console.log(` Servidor corriendo en: http://localhost:${PORT}`);
-  console.log(` WebSocket Docs (AsyncAPI): http://localhost:${PORT}/asyncapi`);
   console.log(` Archivos disponibles en: http://localhost:${PORT}/uploads`);
 }
 
