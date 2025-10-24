@@ -11,10 +11,11 @@ import { TipoSensor } from '../tipo-sensor/entities/tipo-sensor.entity';
 
 import { UsuariosModule } from 'src/modules/usuario/usuarios/usuarios.module';
 import { MqttModule } from 'src/common/services/mqtt/mqtt.module';
+import { SensorLectura } from './entities/sensorLectura.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Sensor, Lote, TipoSensor]),
+    TypeOrmModule.forFeature([Sensor, Lote, TipoSensor, SensorLectura]),
     UsuariosModule,
     forwardRef(() => MqttModule), // rompe la circularidad
   ],

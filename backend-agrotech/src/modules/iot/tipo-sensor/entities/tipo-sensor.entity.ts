@@ -6,7 +6,8 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Sensor } from 'src/modules/iot/sensores/entities/sensor.entity';
-
+import { UnidadesTipoSensor } from '../enums/unidades.enum';
+import { DecimalesTipoSensor } from '../enums/decimales.enum';
 @Entity({ name: 'tipo_sensor' })
 export class TipoSensor {
   @PrimaryGeneratedColumn({ name: 'id_tipo_sensor_pk' })
@@ -23,20 +24,21 @@ export class TipoSensor {
 
   @Column({
     name: 'unidades_tipo_sensor',
-    type: 'varchar',
-    length: 20,
+    type: 'enum',
+    enum: UnidadesTipoSensor,
     nullable: true,
     comment: 'Unidad de medida (%, °C, pH, lx, etc.)',
   })
-  unidades_tipo_sensor?: string;
+  unidades_tipo_sensor?: UnidadesTipoSensor;
 
   @Column({
     name: 'decimales_tipo_sensor',
-    type: 'int',
+    type: 'enum',
+    enum: DecimalesTipoSensor,
     nullable: true,
-    comment: 'Número de decimales según el tipo de sensor',
+    comment: 'Formato de decimales (#, ##, ###, ####, #####)',
   })
-  decimales_tipo_sensor?: number;
+  decimales_tipo_sensor?: DecimalesTipoSensor;
 
   @Column({
     name: 'imagen_tipo_sensor',
@@ -52,7 +54,7 @@ export class TipoSensor {
     type: 'timestamp',
     nullable: true,
   })
-  delete_at?: Date;
+  delete_at?: Date|null;
 
   // Relación con Sensores
   @OneToMany(() => Sensor, (sensor) => sensor.tipo_sensor)

@@ -26,11 +26,9 @@ import { PageReportes, ListaPageReporte, CrearPageReporte, EditarPageReporte } f
 
 import {ListaPermisosPage} from "@/modules/permisos/permisos/pages/indexPagePermisos";
 
-import { CrearPageIot, EditarPageIot, ListaPageIot, SensoresLivePage} from "@/modules/iot/Sensor/pages/indexPageIot";
+import {SensoresLivePage} from "@/modules/iot/Sensor/pages/indexPageIot";
 
-import  {TipoSensorPage}  from "@/modules/iot/TipoSensor/pages/indexPageTipoSensor";
-
-
+import  TipoSensorPage from "@/modules/iot/TipoSensor/pages/indexPageTipoSensor";
 
 import  CrearPageTipoCultivo  from "@/modules/cultivo/tipoCultivo/pages/crearPage";
 
@@ -168,10 +166,7 @@ export default function AppRoutes() {
         <Route path="/editar-finanzas" element={<EditarPageFinanzas />} />
 
         {/* Inventario */}
-        <Route path="/inventario" element={<CrearPageIot />} />
-        <Route path="/lista-inventario" element={<CrearPageIot />} />
-        <Route path="/inventario-registrar" element={<CrearPageIot />} />
-        <Route path="/editar-inventario" element={<CrearPageIot />} />
+
 
         {/* Reportes */}
         <Route path="/reportes" element={<PageReportes />} />
@@ -186,11 +181,9 @@ export default function AppRoutes() {
 
 
         {/* IoT */}
-       <Route path="/iot" element={<ListaPageIot />} />
-        <Route path="/iot-registrar" element={<CrearPageIot />} />
-       <Route path="/iot/editar/:id" element={<EditarPageIot />} />
-        <Route path="/tipo-sensor" element={<TipoSensorPage />} />
+
         <Route path="/SensoresLivePage" element={<SensoresLivePage />} />
+        <Route path="/TipoSensorPage" element={<TipoSensorPage />} />
 
 
 

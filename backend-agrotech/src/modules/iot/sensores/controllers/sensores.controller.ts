@@ -141,4 +141,32 @@ export class SensoresController {
     this.sensoresGateway.server.emit('sensores:restored', restored);
     return restored;
   }
+
+
+  // =========================
+// Obtener historial de lecturas de un sensor
+// =========================
+@Get(':id/historial')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+@PermisoRequerido('iot:sensores:read')
+@ApiOperation({
+  summary: 'Obtener historial de lecturas',
+  description: 'Devuelve las últimas lecturas registradas del sensor especificado.',
+})
+@ApiParam({ name: 'id', description: 'ID del sensor' })
+@ApiResponse({
+  status: 200,
+  description: 'Historial de lecturas obtenido correctamente',
+  schema: {
+    example: [
+      { id_lectura_pk: 1, valor: 23.5, fecha: '2025-10-24T00:30:00Z' },
+      { id_lectura_pk: 2, valor: 24.1, fecha: '2025-10-24T00:35:00Z' },
+    ],
+  },
+})
+async findHistorial(@Param('id', ParseIntPipe) id: number) {
+  const historial = await this.sensoresService.findHistorial(id);
+  return historial;
+}
+
 }

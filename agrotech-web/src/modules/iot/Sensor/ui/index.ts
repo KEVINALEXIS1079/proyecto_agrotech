@@ -1,4 +1,4 @@
-export * from "./SensorHeader";
-export * from "./SensorFields";
-export * from "./SensorMessageCard";
+export * from "./SensoresLivePage";
+export * from "./SensoresTable";
 export * from "./SensorForm";
+

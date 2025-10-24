@@ -6,9 +6,11 @@ import {
   ManyToOne,
   JoinColumn,
   Unique,
+  OneToMany,
 } from 'typeorm';
 import { TipoSensor } from 'src/modules/iot/tipo-sensor/entities/tipo-sensor.entity';
 import { Lote } from 'src/modules/cultivo/lotes/entities/lote.entity';
+import { SensorLectura } from './sensorLectura.entity';
 
 @Entity({ name: 'sensores' })
 @Unique(['nombre_sensor'])
@@ -41,10 +43,21 @@ export class Sensor {
   // Último valor medido
   // ------------------------
   @Column({ type: 'float', nullable: true })
-  ultimo_valor: number;
+  ultimo_valor: number | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  ultima_medicion: Date;
+  ultima_medicion: Date | null;
+
+  // ------------------------
+  // Estado de conexión (nuevo)
+  // ------------------------
+  @Column({
+    type: 'enum',
+    enum: ['conectado', 'desconectado'],
+    default: 'desconectado',
+    comment: 'Estado actual de conexión del sensor al broker MQTT',
+  })
+  estado_sensor: 'conectado' | 'desconectado';
 
   // ------------------------
   // Relación con Lote
@@ -61,10 +74,19 @@ export class Sensor {
   })
   @JoinColumn({ name: 'id_tipo_sensor_fk' })
   tipo_sensor: TipoSensor;
+  // ------------------------
+  // Relación con sensorLectura
+  // ------------------------
+  @OneToMany(() => SensorLectura, (lectura) => lectura.id_sensor_fk)
+  lecturas: SensorLectura[];
 
   // ------------------------
   // Soft delete
   // ------------------------
-  @DeleteDateColumn({ type: 'timestamp', nullable: true })
-  delete_at: Date|null;
+  @DeleteDateColumn({
+    name: 'delete_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  deletedAt: Date | null;
 }

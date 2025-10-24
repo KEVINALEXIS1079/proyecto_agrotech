@@ -1,121 +1,123 @@
-import React, { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { TipoSensorTable } from "../ui/TipoSensorTable";
-import { TipoSensorModalForm } from "../ui/TipoSensorModalForm";
-import type { TipoSensor } from "../model/types";
-import { EyeIcon, EyeSlashIcon, CpuChipIcon } from "@heroicons/react/24/outline";
-import { tipoSensorService } from "../api/tipoSensor.service";
-import { TIPO_SENSOR_QUERY_KEY } from "../hooks/useTipoSensorList";
+import { useMemo, useState } from "react";
+import { Card, CardBody, CardHeader, Tabs, Tab, Button, useDisclosure } from "@heroui/react";
+import {
+  useTipoSensorList,
+  useTipoSensorDeleted,
+  useCreateTipoSensor,
+  useUpdateTipoSensor,
+  useRemoveTipoSensor,
+  useRestoreTipoSensor,
+  useTipoSensorRealtime,
+} from "../hooks/useTipoSensor";
+import TipoSensorForm from "../ui/TipoSensorForm";
+import TipoSensorTable from "../ui/TipoSensorTable";
+import ConfirmDialog from "../widgets/ConfirmDialog";
 
-export const TipoSensorPage: React.FC = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSensor, setSelectedSensor] = useState<TipoSensor | null>(null);
-  const [showDeleted, setShowDeleted] = useState(false);
+import type { TipoSensor, CreateTipoSensorInput } from "../model/types";
 
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    const handleChanges = () => {
-      console.log("WebSocket: Cambios detectados en tipos de sensor, actualizando UI...");
-      queryClient.invalidateQueries({ queryKey: [TIPO_SENSOR_QUERY_KEY] });
-    };
+export default function TipoSensorPage() {
+  // Datos y realtime
+  const { data: activos, isLoading: loadingActivos } = useTipoSensorList();
+  const { data: eliminados, isLoading: loadingEliminados } = useTipoSensorDeleted();
+  useTipoSensorRealtime();
 
-    tipoSensorService.on("tipo-sensor:changes-detected", handleChanges);
+  // Crear / Editar
+  const form = useDisclosure();
+  const [editing, setEditing] = useState<TipoSensor | null>(null);
 
-    return () => {
-      console.log("Desconectando listener de WebSocket para tipos de sensor.");
-      tipoSensorService.off("tipo-sensor:changes-detected");
-    };
-  }, [queryClient]);
+  const { mutateAsync: createTS, isPending: creating } = useCreateTipoSensor();
+  const { mutateAsync: updateTS, isPending: updating } = useUpdateTipoSensor();
+  const { mutateAsync: removeTS, isPending: removing } = useRemoveTipoSensor();
+  const { mutateAsync: restoreTS, isPending: restoring } = useRestoreTipoSensor();
 
-  const handleAdd = () => {
-    setSelectedSensor(null);
-    setIsModalOpen(true);
-  };
+  // Confirm dialogs
+  const [toDelete, setToDelete] = useState<TipoSensor | null>(null);
+  const [toRestore, setToRestore] = useState<TipoSensor | null>(null);
 
-  const handleEdit = (tipo: TipoSensor) => {
-    setSelectedSensor(tipo);
-    setIsModalOpen(true);
-  };
+  function openCreate() {
+    setEditing(null);
+    form.onOpen();
+  }
+  function openEdit(row: TipoSensor) {
+    setEditing(row);
+    form.onOpen();
+  }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setTimeout(() => setSelectedSensor(null), 300);
-  };
-
-  const handleNavigateToIot = () => {
-    navigate("/iot");
-  };
+  async function handleSubmit(payload: CreateTipoSensorInput) {
+    if (editing) await updateTS({ id: editing.id_tipo_sensor_pk, input: payload });
+    else await createTS(payload);
+    form.onClose();
+  }
 
   return (
-    <div className="bg-white-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Encabezado */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {showDeleted ? "Sensores Eliminados" : "Gestión de Tipos de Sensor"}
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {showDeleted
-                ? "Aquí puedes restaurar los sensores eliminados."
-                : "Crea, edita y elimina los tipos de sensores."}
-            </p>
-          </div>
+    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+      <Card shadow="sm">
+        <CardHeader className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Tipos de Sensor</h2>
+          <Button color="primary" onPress={openCreate}>Nuevo tipo</Button>
+        </CardHeader>
+        <CardBody>
+          <Tabs aria-label="Tabs tipo sensor" color="primary" variant="underlined">
+            <Tab key="activos" title={`Activos (${activos?.length ?? 0})`}>
+              <TipoSensorTable
+                data={activos}
+                loading={loadingActivos}
+                onCreate={openCreate}
+                onEdit={(row) => openEdit(row)}
+                onRemove={(row) => setToDelete(row)}
+              />
+            </Tab>
+            <Tab key="eliminados" title={`Eliminados (${eliminados?.length ?? 0})`}>
+              <TipoSensorTable
+                data={eliminados}
+                loading={loadingEliminados}
+                deleted
+                onRestore={(row) => setToRestore(row)}
+              />
+            </Tab>
+          </Tabs>
+        </CardBody>
+      </Card>
 
-          <button
-            onClick={() => setShowDeleted(!showDeleted)}
-            className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            {showDeleted ? (
-              <EyeIcon className="h-5 w-5" />
-            ) : (
-              <EyeSlashIcon className="h-5 w-5" />
-            )}
-            {showDeleted ? "Ver Activos" : "Ver Eliminados"}
-          </button>
-        </div>
+      {/* Formulario crear/editar */}
+      <TipoSensorForm
+        open={form.isOpen}
+        onClose={form.onClose}
+        onSubmit={handleSubmit}
+        initial={editing || undefined}
+        submitting={creating || updating}
+      />
 
-        {/* Botones principales */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            {/* Botón para ir a Sensores */}
-            <button
-              onClick={handleNavigateToIot}
-              className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:bg-gray-700 transition-colors"
-            >
-              <CpuChipIcon className="h-5 w-5" />
-              Ir a Sensores
-            </button>
+      {/* Confirmar eliminación */}
+      <ConfirmDialog
+        open={!!toDelete}
+        title="Eliminar tipo de sensor"
+        message={toDelete ? `¿Eliminar "${toDelete.nombre_tipo_sensor}"? Se puede restaurar luego.` : ""}
+        onClose={() => setToDelete(null)}
+        onConfirm={async () => {
+          if (!toDelete) return;
+          await removeTS(toDelete.id_tipo_sensor_pk);
+          setToDelete(null);
+        }}
+        loading={removing}
+        confirmText="Eliminar"
+      />
 
-            {/* Botón para añadir nuevo */}
-            <button
-              onClick={handleAdd}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:bg-green-700 transition-colors"
-            >
-              Añadir Nuevo
-            </button>
-          </div>
-        </div>
-
-        {/* Tabla de tipos de sensor */}
-        <TipoSensorTable
-          onEdit={handleEdit}
-          onAdd={handleAdd}
-          showDeleted={showDeleted}
-        />
-
-        {/* Modal */}
-        <TipoSensorModalForm
-          open={isModalOpen}
-          tipoSensor={selectedSensor}
-          onClose={handleCloseModal}
-        />
-      </div>
+      {/* Confirmar restauración */}
+      <ConfirmDialog
+        open={!!toRestore}
+        title="Restaurar tipo de sensor"
+        message={toRestore ? `¿Restaurar "${toRestore.nombre_tipo_sensor}"?` : ""}
+        onClose={() => setToRestore(null)}
+        onConfirm={async () => {
+          if (!toRestore) return;
+          await restoreTS(toRestore.id_tipo_sensor_pk);
+          setToRestore(null);
+        }}
+        loading={restoring}
+        confirmText="Restaurar"
+      />
     </div>
   );
-};
-
-export default TipoSensorPage;
+}

@@ -1,396 +1,208 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
-  Card,
   Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Select,
   SelectItem,
   Switch,
-  Modal,
-  ModalBody,
-  ModalHeader,
-  ModalFooter,
 } from "@heroui/react";
-import { toast } from "react-toastify";
-import { useCreateSensor, useUpdateSensor } from "../hooks";
-import { getCultivos } from "../../../cultivo/cultivo/api";
-import { tipoSensorService } from "../../TipoSensor/api/tipoSensor.service";
-import type { Cultivo } from "../../../cultivo/cultivo/model/types";
-import type { TipoSensor as TipoSensorType } from "../../TipoSensor/model/types";
-import type { Sensor, SensorDTO } from "../model/types";
-import { PlusIcon, UploadCloudIcon } from "lucide-react";
+import type { CreateSensorInput, Sensor } from "../model/types";
+import { useLotes, useTiposSensor } from "../hooks/useSensores";
 
-interface Props {
-  sensorToEdit?: Sensor | null;
-  onSuccess?: () => void;
+export type SensorFormValues = CreateSensorInput;
+
+interface SensorFormProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (values: SensorFormValues) => void;
+  initial?: Partial<Sensor> | null;
+  submitting?: boolean;
+  onViewTipos: () => void | Promise<void>;
+  onQuickCreateTipo: () => void;
 }
 
-export function SensorForm({ sensorToEdit, onSuccess }: Props) {
-  const isEditMode = !!sensorToEdit;
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export default function SensorForm({
+  open,
+  onClose,
+  onSubmit,
+  initial,
+  submitting = false,
+  onViewTipos,
+  onQuickCreateTipo,
+}: SensorFormProps) {
+  const { data: tipos } = useTiposSensor();
+  const { data: lotes } = useLotes();
 
-  // ✅ Fecha local actual corregida (sin desfasar al día siguiente)
-  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    .toISOString()
-    .split("T")[0];
-
-  const [form, setForm] = useState<SensorDTO>({
+  const [values, setValues] = useState<SensorFormValues>({
     nombre_sensor: "",
-    valor_minimo: undefined as unknown as number,
-    valor_maximo: undefined as unknown as number,
-    fecha_inicio_sensor: today,
-    fecha_fin_sensor: "",
-    id_cultivo_fk: 0,
-    id_tipo_sensor_fk: 0,
+    broker_sensor: "",
+    puerto_sensor: 1883,
+    topico_sensor: "",
+    valor_minimo_sensor: 0,
+    valor_maximo_sensor: 100,
     activo: true,
+    id_lote_fk: 0,
+    id_tipo_sensor_fk: 0,
   });
 
-  const [imagenFile, setImagenFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [cultivos, setCultivos] = useState<Cultivo[]>([]);
-  const [tiposSensor, setTiposSensor] = useState<TipoSensorType[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [nuevoTipoNombre, setNuevoTipoNombre] = useState("");
-
-  const { createSensor, loading: isCreating } = useCreateSensor();
-  const { updateSensor, loading: isUpdating } = useUpdateSensor();
-  const isLoading = isCreating || isUpdating;
-
-  /* ===========================
-   * Cargar datos iniciales
-   * =========================== */
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const [cultivosData, tiposData] = await Promise.all([
-          getCultivos(),
-          tipoSensorService.list(),
-        ]);
-        setCultivos(cultivosData);
-        setTiposSensor(tiposData);
-      } catch {
-        toast.error("Error al cargar datos del formulario.");
-      }
-    };
-    loadInitialData();
-  }, []);
-
-  /* ===========================
-   * Modo edición
-   * =========================== */
-  useEffect(() => {
-    if (isEditMode && sensorToEdit) {
-      setForm({
-        nombre_sensor: sensorToEdit.nombre_sensor,
-        valor_minimo: sensorToEdit.valor_minimo,
-        valor_maximo: sensorToEdit.valor_maximo,
-        fecha_inicio_sensor: sensorToEdit.fecha_inicio_sensor.split("T")[0],
-        fecha_fin_sensor: sensorToEdit.fecha_fin_sensor.split("T")[0],
-        id_cultivo_fk: sensorToEdit.cultivo.id_cultivo_pk,
-        id_tipo_sensor_fk: sensorToEdit.tipo_sensor.id_tipo_sensor_pk,
-        activo: sensorToEdit.activo,
+    if (open) {
+      setValues({
+        nombre_sensor: initial?.nombre_sensor || "",
+        broker_sensor: initial?.broker_sensor || "",
+        puerto_sensor: initial?.puerto_sensor ?? 1883,
+        topico_sensor: initial?.topico_sensor || "",
+        valor_minimo_sensor: initial?.valor_minimo_sensor ?? 0,
+        valor_maximo_sensor: initial?.valor_maximo_sensor ?? 100,
+        activo: initial?.activo ?? true,
+        id_lote_fk: (initial as any)?.lote?.id_lote_pk ?? 0,
+        id_tipo_sensor_fk:
+          (initial as any)?.tipo_sensor?.id_tipo_sensor_pk ?? 0,
       });
-      setPreview(sensorToEdit.imagen_sensor || null);
     }
-  }, [sensorToEdit, isEditMode]);
+  }, [open, initial]);
 
-  const handleChange = (field: keyof SensorDTO, value: any) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
+  function handleChange<K extends keyof SensorFormValues>(k: K, v: any) {
+    setValues((s) => ({ ...s, [k]: v }));
+  }
 
-  /* ===========================
-   * Validación de imagen
-   * =========================== */
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function submit() {
+    if (!values.nombre_sensor.trim()) return;
+    if (!values.broker_sensor.trim()) return;
+    if (!values.topico_sensor.trim()) return;
+    if (!values.id_lote_fk || !values.id_tipo_sensor_fk) return;
+    onSubmit(values);
+  }
 
-    const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-    const maxSizeMB = 20;
-    const maxSizeBytes = maxSizeMB * 1024 * 1024;
-
-    if (!validTypes.includes(file.type)) {
-      toast.error("Formato de imagen no válido. Usa JPG, PNG o WEBP.");
-      e.target.value = "";
-      return;
-    }
-
-    if (file.size > maxSizeBytes) {
-      toast.error(`La imagen supera los ${maxSizeMB} MB permitidos.`);
-      e.target.value = "";
-      return;
-    }
-
-    setImagenFile(file);
-    setPreview(URL.createObjectURL(file));
-  };
-
-  /* ===========================
-   * Validaciones del formulario
-   * =========================== */
-  const validateForm = (): boolean => {
-    if (!form.nombre_sensor.trim()) {
-      toast.error("El nombre del sensor es obligatorio.");
-      return false;
-    }
-    if (form.valor_minimo == null || form.valor_maximo == null) {
-      toast.error("Debes ingresar los valores mínimo y máximo.");
-      return false;
-    }
-    if (form.valor_minimo < 0 || form.valor_maximo < 0) {
-      toast.error("Los valores deben ser positivos.");
-      return false;
-    }
-    if (Number(form.valor_maximo) <= Number(form.valor_minimo)) {
-      toast.error("El valor máximo debe ser mayor que el mínimo.");
-      return false;
-    }
-    if (!form.fecha_fin_sensor) {
-      toast.error("Debes seleccionar la fecha de fin.");
-      return false;
-    }
-    if (new Date(form.fecha_fin_sensor) < new Date(form.fecha_inicio_sensor)) {
-      toast.error("La fecha de fin no puede ser anterior a la de inicio.");
-      return false;
-    }
-    if (!form.id_cultivo_fk) {
-      toast.error("Debes seleccionar un cultivo.");
-      return false;
-    }
-    if (!form.id_tipo_sensor_fk) {
-      toast.error("Debes seleccionar un tipo de sensor.");
-      return false;
-    }
-    return true;
-  };
-
-  /* ===========================
-   * Agregar nuevo tipo de sensor
-   * =========================== */
-  const handleAddTipoSensor = async () => {
-    if (!nuevoTipoNombre.trim()) return toast.error("El nombre es requerido.");
-    try {
-      const nuevoTipo = await tipoSensorService.create({
-        nombre: nuevoTipoNombre,
-      });
-      const updatedList = await tipoSensorService.list();
-      setTiposSensor(updatedList);
-
-      handleChange("id_tipo_sensor_fk", nuevoTipo.id_tipo_sensor);
-      toast.success("Tipo de sensor agregado.");
-      setIsModalOpen(false);
-      setNuevoTipoNombre("");
-    } catch {
-      toast.error("Error al crear el tipo de sensor.");
-    }
-  };
-
-  /* ===========================
-   * Envío del formulario
-   * =========================== */
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    let success = false;
-    const payload = { ...form };
-
-    try {
-      if (isEditMode && sensorToEdit) {
-        const result = await updateSensor(
-          sensorToEdit.id_sensor_pk,
-          payload,
-          imagenFile ?? undefined
-        );
-        success = !!result;
-      } else {
-        const result = await createSensor(payload, imagenFile ?? undefined);
-        success = !!result;
-      }
-
-      if (success) {
-        toast.success(
-          `Sensor ${isEditMode ? "actualizado" : "creado"} correctamente.`
-        );
-        onSuccess?.();
-      }
-    } catch {
-      toast.error("Error al guardar el sensor.");
-    }
-  };
-
-  /* ===========================
-   * Render
-   * =========================== */
   return (
-    <Card className="p-8 shadow-sm border border-gray-200">
-      <h2 className="text-2xl font-bold text-gray-800 mb-8">
-        {isEditMode ? "Editar Sensor" : "Registrar Sensor"}
-      </h2>
-      <form
-        onSubmit={handleSubmit}
-        className="grid grid-cols-1 sm:grid-cols-2 gap-6"
-      >
-        <Input
-          label="Nombre del sensor"
-          value={form.nombre_sensor}
-          onValueChange={(v) => handleChange("nombre_sensor", v)}
-          isRequired
-        />
+    <Modal isOpen={open} onOpenChange={(v) => !v && onClose()}>
+      <ModalContent>
+        <ModalHeader className="text-lg font-semibold">
+          {initial?.id_sensor_pk ? "Editar sensor" : "Nuevo sensor"}
+        </ModalHeader>
 
-        <Input
-          label="Valor mínimo"
-          type="number"
-          placeholder="Ej: 10"
-          min={0}
-          value={form.valor_minimo === undefined ? "" : String(form.valor_minimo)}
-          onValueChange={(v) =>
-            handleChange("valor_minimo", v ? Number(v) : undefined)
-          }
-          isRequired
-        />
-
-        <Input
-          label="Valor máximo"
-          type="number"
-          placeholder="Ej: 50"
-          min={0}
-          value={form.valor_maximo === undefined ? "" : String(form.valor_maximo)}
-          onValueChange={(v) =>
-            handleChange("valor_maximo", v ? Number(v) : undefined)
-          }
-          isRequired
-        />
-
-        <Input label="Fecha inicio" type="date" value={form.fecha_inicio_sensor} isDisabled />
-
-        <Input
-          label="Fecha fin"
-          type="date"
-          min={form.fecha_inicio_sensor}
-          value={form.fecha_fin_sensor}
-          onValueChange={(v) => handleChange("fecha_fin_sensor", v)}
-          isRequired
-        />
-
-        <Select
-          label="Cultivo"
-          selectedKeys={form.id_cultivo_fk ? [String(form.id_cultivo_fk)] : []}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-            handleChange("id_cultivo_fk", Number(e.target.value))
-          }
-          isRequired
-        >
-          {cultivos.map((c) => (
-            <SelectItem key={c.id_cultivo_pk}>{c.nombre_cultivo}</SelectItem>
-          ))}
-        </Select>
-
-        <div className="flex items-end gap-2">
-          <Select
-            label="Tipo de Sensor"
-            selectedKeys={
-              form.id_tipo_sensor_fk ? [String(form.id_tipo_sensor_fk)] : []
-            }
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleChange("id_tipo_sensor_fk", Number(e.target.value))
-            }
-            className="flex-grow"
-            isRequired
-          >
-            {tiposSensor.map((t) => (
-              <SelectItem key={t.id_tipo_sensor}>{t.nombre}</SelectItem>
-            ))}
-          </Select>
-          <Button
-            type="button"
-            onPress={() => setIsModalOpen(true)}
-            className="h-10 flex-shrink-0"
-          >
-            <PlusIcon size={20} />
-          </Button>
-        </div>
-
-        {isEditMode && (
-          <div className="flex items-center gap-2">
-            <Switch
-              isSelected={form.activo}
-              onValueChange={(v: boolean) => handleChange("activo", v)}
-            >
-              Sensor Activo
-            </Switch>
-          </div>
-        )}
-
-        {/* Imagen del sensor */}
-        <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Imagen del Sensor
-          </label>
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50 transition"
-          >
-            {preview ? (
-              <img
-                src={preview}
-                alt="Vista previa"
-                className="w-48 h-48 object-cover rounded-lg shadow"
-              />
-            ) : (
-              <>
-                <UploadCloudIcon className="h-10 w-10 text-gray-400" />
-                <p className="text-gray-500 mt-2">
-                  Clic para seleccionar una imagen
-                </p>
-              </>
-            )}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              accept="image/jpeg,image/png,image/jpg,image/webp"
+        <ModalBody className="gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Nombre"
+              value={values.nombre_sensor}
+              onChange={(e) => handleChange("nombre_sensor", e.target.value)}
+              isRequired
             />
+
+            {/* Select de tipo de sensor */}
+            <div className="flex items-end gap-2">
+<Select
+  label="Tipo de sensor"
+  selectedKeys={
+    values.id_tipo_sensor_fk
+      ? new Set([String(values.id_tipo_sensor_fk)])
+      : new Set()
+  }
+  onSelectionChange={(keys) => {
+    const id = Number(Array.from(keys)[0]);
+    handleChange("id_tipo_sensor_fk", id);
+  }}
+>
+  {(tipos || []).map((t) => (
+    <SelectItem
+      key={String(t.id_tipo_sensor_pk)} // solo key
+    >
+      {t.nombre_tipo_sensor}
+      {t.unidades_tipo_sensor ? ` (${t.unidades_tipo_sensor})` : ""}
+    </SelectItem>
+  ))}
+</Select>
+
+
+              
+            </div>
+
+            {/* Select de lote */}
+            <Select
+              label="Lote"
+              selectedKeys={
+                values.id_lote_fk
+                  ? new Set([String(values.id_lote_fk)])
+                  : new Set()
+              }
+              onSelectionChange={(keys) => {
+                const id = Number(Array.from(keys)[0]);
+                handleChange("id_lote_fk", id);
+              }}
+            >
+              {(lotes || []).map((l) => (
+                <SelectItem key={String(l.id_lote_pk)}>
+                  {l.nombre_lote || l.codigo || `Lote ${l.id_lote_pk}`}
+                </SelectItem>
+              ))}
+            </Select>
+
+            <Input
+              label="Broker"
+              placeholder="mqtt://… o host"
+              value={values.broker_sensor}
+              onChange={(e) => handleChange("broker_sensor", e.target.value)}
+            />
+
+            <Input
+              type="number"
+              label="Puerto"
+              value={String(values.puerto_sensor)}
+              onChange={(e) =>
+                handleChange("puerto_sensor", Number(e.target.value))
+              }
+            />
+
+            <Input
+              label="Tópico"
+              value={values.topico_sensor}
+              onChange={(e) => handleChange("topico_sensor", e.target.value)}
+            />
+
+            <Input
+              type="number"
+              label="Valor mínimo"
+              value={String(values.valor_minimo_sensor)}
+              onChange={(e) =>
+                handleChange("valor_minimo_sensor", Number(e.target.value))
+              }
+            />
+
+            <Input
+              type="number"
+              label="Valor máximo"
+              value={String(values.valor_maximo_sensor)}
+              onChange={(e) =>
+                handleChange("valor_maximo_sensor", Number(e.target.value))
+              }
+            />
+
+            <div className="flex items-center gap-2">
+              <Switch
+                isSelected={!!values.activo}
+                onValueChange={(v) => handleChange("activo", v)}
+              >
+                Activo
+              </Switch>
+            </div>
           </div>
-        </div>
-
-        <div className="sm:col-span-2 flex justify-center mt-6">
-          <Button
-            type="submit"
-            color="primary"
-            isLoading={isLoading}
-            className="w-full sm:w-auto"
-          >
-            {isLoading
-              ? "Guardando..."
-              : isEditMode
-              ? "Actualizar Sensor"
-              : "Guardar Sensor"}
-          </Button>
-        </div>
-      </form>
-
-      {/* Modal nuevo tipo de sensor */}
-      <Modal isOpen={isModalOpen} onOpenChange={setIsModalOpen}>
-        <ModalHeader>Registrar Nuevo Tipo de Sensor</ModalHeader>
-        <ModalBody>
-          <Input
-            label="Nombre del tipo"
-            value={nuevoTipoNombre}
-            onValueChange={setNuevoTipoNombre}
-            placeholder="Ej: Humedad del Suelo"
-          />
         </ModalBody>
+
         <ModalFooter>
-          <Button variant="light" onPress={() => setIsModalOpen(false)}>
+          <Button variant="light" onPress={onClose} disabled={submitting}>
             Cancelar
           </Button>
-          <Button color="primary" onPress={handleAddTipoSensor}>
-            Guardar
+          <Button color="primary" onPress={submit} isLoading={submitting}>
+            {initial?.id_sensor_pk ? "Guardar" : "Crear"}
           </Button>
         </ModalFooter>
-      </Modal>
-    </Card>
+      </ModalContent>
+    </Modal>
   );
 }

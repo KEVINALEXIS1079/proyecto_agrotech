@@ -79,4 +79,20 @@ export class SensoresGateway {
     this.server.emit('sensores:restored', restored);
     return restored;
   }
+
+
+
+  @SubscribeMessage('sensores:historial')
+@UseGuards(JwtAuthGuard, PermisosGuard)
+async findHistorial(
+  @MessageBody('id') id: number,
+  @ConnectedSocket() client: Socket,
+) {
+  if (!id) throw new BadRequestException('El id del sensor es obligatorio');
+
+  const historial = await this.sensoresService.findHistorial(id);
+  client.emit('sensores:historial', historial);
+  return historial;
+}
+
 }

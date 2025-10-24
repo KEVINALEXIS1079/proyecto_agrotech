@@ -10,6 +10,8 @@ import { CreateTipoSensorDto } from '../dto/create-tipo-sensor.dto';
 import { UpdateTipoSensorDto } from '../dto/update-tipo-sensor.dto';
 import { join } from 'path';
 import { unlink } from 'fs/promises';
+import { UnidadesTipoSensor } from '../enums/unidades.enum';
+import { DecimalesTipoSensor } from '../enums/decimales.enum';
 
 @Injectable()
 export class TipoSensorService {
@@ -36,11 +38,16 @@ export class TipoSensorService {
     }
 
     const nuevoTipoSensor = this.tipoSensorRepository.create({
-      ...createTipoSensorDto,
+      nombre_tipo_sensor: createTipoSensorDto.nombre_tipo_sensor,
+      unidades_tipo_sensor:
+        createTipoSensorDto.unidades_tipo_sensor as UnidadesTipoSensor,
+      decimales_tipo_sensor:
+      createTipoSensorDto.decimales_tipo_sensor as unknown as DecimalesTipoSensor,
       imagen_tipo_sensor: imagen ? imagen.filename : null,
     });
 
     await this.tipoSensorRepository.save(nuevoTipoSensor);
+
     return 'Tipo de sensor registrado correctamente';
   }
 

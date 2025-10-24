@@ -107,6 +107,7 @@ import { TipoSensor } from 'src/modules/iot/tipo-sensor/entities/tipo-sensor.ent
     MovimientoProductoModule,
     VentasModule,
     TipoActividadModule,
+    
   ],
   controllers: [AppController],
   providers: [
