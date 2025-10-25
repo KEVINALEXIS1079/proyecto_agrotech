@@ -32,7 +32,7 @@ export class UsuariosService {
     private readonly correoService: CorreoService,
   ) {}
 
-  /** ✅ Implementación real para usar en /auth/profile */
+  /** Implementación real para usar en /auth/profile */
   async findByIdConRol(id_usuario_pk: number): Promise<Usuario | null> {
     return this.usuarioRepository.findOne({
       where: { id_usuario_pk },

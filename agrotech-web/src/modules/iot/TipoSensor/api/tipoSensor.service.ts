@@ -1,12 +1,10 @@
+// src/modules/iot/tipo-sensor/api/tipoSensorService.ts
 import api, { connectSocket } from "@/shared/api/client";
 import type { Socket } from "socket.io-client";
-import type {
-  TipoSensor,
-  CreateTipoSensorInput,
-  UpdateTipoSensorInput,
-} from "../model/types";
+import type { TipoSensor, CreateTipoSensorInput, UpdateTipoSensorInput } from "../model/types";
+import { mapTipoSensorFromApi } from "../model/mappers";
 
-const BASE = "/tipo-sensor"; // @Controller('tipo-sensor')
+const BASE = "/tipo-sensor";
 
 function toFormData(data: Record<string, any>) {
   const fd = new FormData();
@@ -22,47 +20,37 @@ function toFormData(data: Record<string, any>) {
 
 export const tipoSensorService = {
   async list(): Promise<TipoSensor[]> {
-    const { data } = await api.get<TipoSensor[]>(BASE);
-    return data;
+    const { data } = await api.get(BASE);
+    return data.map(mapTipoSensorFromApi);
   },
-
   async listDeleted(): Promise<TipoSensor[]> {
-    const { data } = await api.get<TipoSensor[]>(`${BASE}/deleted`);
-    return data;
+    const { data } = await api.get(`${BASE}/deleted`);
+    return data.map(mapTipoSensorFromApi);
   },
-
   async getById(id: number): Promise<TipoSensor> {
-    const { data } = await api.get<TipoSensor>(`${BASE}/${id}`);
-    return data;
+    const { data } = await api.get(`${BASE}/${id}`);
+    return mapTipoSensorFromApi(data);
   },
-
   async create(input: CreateTipoSensorInput): Promise<string> {
     const fd = toFormData(input as any);
-    // No pongas Content-Type a mano; Axios agrega el boundary correcto
     const { data } = await api.post<string>(BASE, fd);
     return data;
   },
-
   async update(id: number, input: UpdateTipoSensorInput): Promise<string> {
     const fd = toFormData(input as any);
     const { data } = await api.patch<string>(`${BASE}/${id}`, fd);
     return data;
   },
-
   async remove(id: number): Promise<string> {
     const { data } = await api.delete<string>(`${BASE}/${id}`);
     return data;
   },
-
   async restore(id: number): Promise<string> {
     const { data } = await api.patch<string>(`${BASE}/restore/${id}`);
     return data;
   },
 };
 
-// ============================
-// WebSocket (namespace /tipo-sensor)
-// ============================
 export function socketTipoSensor(token?: string): Socket {
   return connectSocket("/tipo-sensor", token);
 }

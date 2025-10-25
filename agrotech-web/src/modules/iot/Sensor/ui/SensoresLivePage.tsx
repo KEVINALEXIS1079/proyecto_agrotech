@@ -1,327 +1,311 @@
-import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { Button, Card, CardBody, CardHeader, Chip, Tooltip } from "@heroui/react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  Card,
-  CardBody,
-  CardHeader,
-  Divider,
-  Input,
-  Switch,
-  Button,
-  CircularProgress,
-} from "@heroui/react";
-import { Search, RefreshCcw, Wifi } from "lucide-react";
-import {
-  ResponsiveContainer,
-  AreaChart,
   Area,
+  AreaChart,
+  Brush,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RTooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip as RTooltip,
+  ReferenceArea,
+  ReferenceLine,
 } from "recharts";
-import {
-  useSensoresList,
-  useCreateSensor,
-  useUpdateSensor,
-  useRemoveSensor,
-  useRestoreSensor,
-  useSensoresRealtime,
-} from "../hooks/useSensores";
-import { sensorService, socketSensores } from "../api/sensorService";
-import type { Sensor } from "../model/types";
-import SensoresTable from "../ui/SensoresTable";
-import SensorForm from "../ui/SensorForm";
 
-/* ===== helpers gráficos ===== */
-type Point = { t: number; v: number };
-const MAX_POINTS = 120;
-const pushPoint = (m: Map<number, Point[]>, id: number, p: Point) => {
-  const arr = m.get(id) ?? [];
-  arr.push(p);
-  if (arr.length > MAX_POINTS) arr.splice(0, arr.length - MAX_POINTS);
-  m.set(id, arr);
-};
-const toPercent = (v?: number | null, min?: number | null, max?: number | null) => {
-  if (v == null) return 0;
-  const lo = min ?? 0, hi = max ?? 100;
-  if (hi === lo) return 0;
-  return Math.max(0, Math.min(100, Math.round(((v - lo) / (hi - lo)) * 100)));
-};
-const pickColor = (v?: number | null, min?: number | null, max?: number | null) => {
-  if (v == null) return "default" as const;
-  const lo = min ?? 0, hi = max ?? 100;
-  if (v < lo || v > hi) return "danger" as const;
-  const edge = (hi - lo || 1) * 0.1;
-  if (v - lo < edge || hi - v < edge) return "warning" as const;
-  return "success" as const;
+type Point = { ts: number; v: number };
+
+type Tipo = {
+  nombre_tipo_sensor?: string | null;
+  unidades_tipo_sensor?: string | null;   // "%", "°C", "pH", "lx", etc.
+  decimales_tipo_sensor?: string | null;  // "0", "0.0", "0.00", ...
 };
 
-export default function SensoresLivePage() {
-  const [query, setQuery] = useState("");
-  const [soloActivos, setSoloActivos] = useState(true);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+type SensorLike = {
+  id_sensor_pk: number;
+  nombre_sensor: string;
+  tipo_sensor?: Tipo | null;
+  valor_minimo_sensor?: number | null;
+  valor_maximo_sensor?: number | null;
+  ultimo_valor?: number | null;
+  ultima_medicion?: string | null;
+};
 
-  const historyRef = useRef<Map<number, Point[]>>(new Map());
-  const [, force] = useState(0);
-  const forceRender = useCallback(() => force((x) => (x + 1) % 1_000_000), []);
+export default function SensorRealtimePanel({
+  selected,
+  percent,
+  radialColor = "default",
+  selectedHistory,
+  onPrev,
+  onNext,
+  onRangeLeftEdge,
+}: {
+  selected: SensorLike | null;
+  percent: number; // 0-100 (según rango min/max del sensor)
+  radialColor?: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
+  selectedHistory: Point[];
+  onPrev?: () => void;
+  onNext?: () => void;
+  onRangeLeftEdge?: () => void;
+}) {
+  // === unidad y decimales del tipo ===
+  const unidad = selected?.tipo_sensor?.unidades_tipo_sensor ?? "";
+  const decPattern = selected?.tipo_sensor?.decimales_tipo_sensor ?? "0";
+  const decCount = useMemo(() => {
+    const i = decPattern.indexOf(".");
+    return i === -1 ? 0 : Math.max(0, decPattern.length - i - 1);
+  }, [decPattern]);
 
-  // Datos + invalidación realtime
-  const { data: activos, isLoading: lAct } = useSensoresList();
-  useSensoresRealtime();
+  const fmt = (v: number | null | undefined) =>
+    v == null || Number.isNaN(v) ? "—" : v.toFixed(decCount);
 
-  // Sembrar historiales primera vez
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const data = await sensorService.list();
-      const now = Date.now();
-      data.forEach((s) => {
-        if (s.ultimo_valor != null) {
-          const t = s.ultima_medicion ? new Date(s.ultima_medicion).getTime() : now;
-          pushPoint(historyRef.current, s.id_sensor_pk, { t, v: s.ultimo_valor! });
-        }
-      });
-      if (!selectedId && data.length) {
-        const first = data.find((x) => x.activo) ?? data[0];
-        setSelectedId(first.id_sensor_pk);
-      }
-    } finally {
-      setLoading(false);
-      forceRender();
+  const last = selected?.ultimo_valor ?? null;
+  const title = selected?.nombre_sensor || "—";
+  const subtitle =
+    (selected?.tipo_sensor?.nombre_tipo_sensor || "—") +
+    (unidad ? ` (${unidad})` : "");
+
+  // === dataset: usar timestamp numérico y ORDEN ASCENDENTE ===
+  const data = useMemo(
+    () =>
+      (selectedHistory || [])
+        .map((p) => ({ x: +new Date(p.ts), y: p.v })) // <- número
+        .sort((a, b) => a.x - b.x),
+    [selectedHistory]
+  );
+  // punto placeholder si no hay histórico
+  const dataForChart = data.length ? data : [{ x: Date.now(), y: last ?? 0 }];
+
+  // === dominio Y ===
+  const yDomain = useMemo<[number, number] | undefined>(() => {
+    const lo = selected?.valor_minimo_sensor;
+    const hi = selected?.valor_maximo_sensor;
+    if (typeof lo === "number" && typeof hi === "number" && lo < hi) return [lo, hi];
+    if (dataForChart.length) {
+      const vals = dataForChart.map((p) => p.y);
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      const pad = (max - min || 1) * 0.1;
+      return [min - pad, max + pad];
     }
-  };
-  useEffect(() => { fetchAll(); /* eslint-disable-line */ }, []);
+    return undefined;
+  }, [selected?.valor_minimo_sensor, selected?.valor_maximo_sensor, dataForChart]);
 
-  // WS: alimentar historial en caliente
+  const showBand =
+    typeof selected?.valor_minimo_sensor === "number" &&
+    typeof selected?.valor_maximo_sensor === "number" &&
+    selected.valor_minimo_sensor < selected.valor_maximo_sensor;
+
+  // color de acento para currentColor
+  const colorClass =
+    radialColor === "success"
+      ? "text-success"
+      : radialColor === "warning"
+      ? "text-warning"
+      : radialColor === "danger"
+      ? "text-danger"
+      : radialColor === "primary"
+      ? "text-primary"
+      : radialColor === "secondary"
+      ? "text-secondary"
+      : "text-foreground";
+
+  // ===== Línea vertical persistente =====
+  const [hoverX, setHoverX] = useState<number | null>(null);
+
+  // ===== Medimos el contenedor (evita width/height -1) =====
+  const [boxReady, setBoxReady] = useState(false);
+  const boxRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const s = socketSensores();
-    const onUpsert = (sensor: Sensor) => {
-      if (sensor.ultimo_valor != null) {
-        const t = sensor.ultima_medicion ? new Date(sensor.ultima_medicion).getTime() : Date.now();
-        pushPoint(historyRef.current, sensor.id_sensor_pk, { t, v: sensor.ultimo_valor });
-        forceRender();
-      }
-    };
-    s.on("sensores:created", onUpsert);
-    s.on("sensores:updated", onUpsert);
-    s.on("sensores:restored", onUpsert);
-    return () => {
-      s.off("sensores:created", onUpsert);
-      s.off("sensores:updated", onUpsert);
-      s.off("sensores:restored", onUpsert);
-    };
-  }, [selectedId]);
-
-  // Filtro y selección
-  const filtered = useMemo<Sensor[]>(() => {
-    const q = query.trim().toLowerCase();
-    const base = (activos || []).filter((s) => (soloActivos ? s.activo : true));
-    if (!q) return base;
-    return base.filter((s) =>
-      [
-        s.nombre_sensor,
-        s.tipo_sensor?.nombre_tipo_sensor,
-        s.lote?.nombre_lote || s.lote?.codigo,
-        s.topico_sensor,
-        s.broker_sensor,
-        String(s.puerto_sensor),
-      ]
-        .join("|")
-        .toLowerCase()
-        .includes(q)
-    );
-  }, [activos, query, soloActivos]);
-
-  const selected = useMemo<Sensor | null>(
-    () => filtered.find((x) => x.id_sensor_pk === selectedId) || filtered[0] || null,
-    [filtered, selectedId]
-  );
-
-  const selectedHistory = useMemo(() => {
-    if (!selected) return [] as { time: string; v: number }[];
-    return (historyRef.current.get(selected.id_sensor_pk) ?? []).map((p) => ({
-      time: new Date(p.t).toLocaleTimeString(),
-      v: p.v,
-    }));
-  }, [selected, loading]);
-
-  const percent = toPercent(
-    selected?.ultimo_valor,
-    selected?.valor_minimo_sensor,
-    selected?.valor_maximo_sensor
-  );
-  const radialColor = pickColor(
-    selected?.ultimo_valor,
-    selected?.valor_minimo_sensor,
-    selected?.valor_maximo_sensor
-  );
-
-  // CRUD
-  const [form, setForm] = useState<{ open: boolean; editing: Sensor | null }>({ open: false, editing: null });
-  const { mutateAsync: createSensor, isPending: creating } = useCreateSensor();
-  const { mutateAsync: updateSensor, isPending: updating } = useUpdateSensor();
-  const { mutateAsync: removeSensor } = useRemoveSensor();
-  const { mutateAsync: restoreSensor } = useRestoreSensor();
-
-  const handleSubmit = async (payload: any) => {
-    if (form.editing) await updateSensor({ id: form.editing.id_sensor_pk, input: payload });
-    else await createSensor(payload);
-    setForm({ open: false, editing: null });
-  };
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      setBoxReady((r?.width ?? 0) > 0 && (r?.height ?? 0) > 0);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      <Card shadow="sm" className="border border-default-100 bg-content1/60 backdrop-blur">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <Wifi className="w-5 h-5" />
-            <div>
-              <h2 className="text-lg font-semibold">Sensores · Monitoreo en tiempo real</h2>
-              <p className="text-small text-default-500">Live por WebSocket (sensores:*). Sin animaciones.</p>
-            </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* IZQUIERDA: radial + meta info */}
+      <Card shadow="sm" className="border border-default-100">
+        <CardHeader className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold">{title}</h3>
+            <p className="text-small text-default-500">{subtitle}</p>
           </div>
-
-          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-            <Input
-              size="sm"
-              variant="bordered"
-              startContent={<Search className="w-4 h-4" />}
-              placeholder="Buscar por nombre, tipo, lote, tópico, broker…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="flex items-center gap-2">
-              <Switch isSelected={soloActivos} onValueChange={setSoloActivos}>
-                Solo activos
-              </Switch>
-              <Button
-                size="sm"
-                variant="flat"
-                startContent={<RefreshCcw className="w-4 h-4" />}
-                onPress={fetchAll}
-                isDisabled={loading || lAct}
-              >
-                Recargar
+          <div className="flex gap-2">
+            <Tooltip content="Anterior">
+              <Button isIconOnly variant="flat" size="sm" onPress={onPrev} isDisabled={!onPrev}>
+                <ChevronLeft className="w-4 h-4" />
               </Button>
-              <Button size="sm" color="primary" onPress={() => setForm({ open: true, editing: null })}>
-                Nuevo sensor
+            </Tooltip>
+            <Tooltip content="Siguiente">
+              <Button isIconOnly variant="flat" size="sm" onPress={onNext} isDisabled={!onNext}>
+                <ChevronRight className="w-4 h-4" />
               </Button>
-            </div>
+            </Tooltip>
           </div>
         </CardHeader>
 
-        {/* ===== Radial + gráfica ===== */}
-        <Divider />
-        <CardBody className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* IZQ: radial */}
-            <div className="md:col-span-4">
-              <div className="bg-content2 rounded-2xl p-6 flex flex-col items-center justify-center">
-                <div className="text-default-500 mb-2">
-                  {selected?.tipo_sensor?.nombre_tipo_sensor ?? "—"}
+        <CardBody className="flex items-center justify-center py-10">
+          {/* Radial con conic-gradient */}
+          <div className="relative w-56 h-56">
+            <div
+              className={`absolute inset-0 rounded-full ${colorClass}`}
+              style={{
+                background: `conic-gradient(currentColor ${Math.max(0, Math.min(100, percent))}%, rgba(127,127,127,.18) 0)`,
+              }}
+            />
+            <div className="absolute inset-2 rounded-full bg-content1 shadow-inner" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex items-center gap-2">
+                <div className={`${colorClass} text-4xl font-semibold leading-none`}>
+                  {unidad === "%" ? Math.round(percent) : fmt(last)}
                 </div>
-
-                {selected ? (
-                  <CircularProgress
-                    aria-label="Nivel actual"
-                    value={percent}
-                    color={radialColor}
-                    showValueLabel
-                    classNames={{ base: "relative", svg: "w-44 h-44", value: "text-3xl font-bold" }}
-                  >
-                    <div className="text-center text-default-600">
-                      {selected.ultimo_valor ?? "—"}
-                      {selected.tipo_sensor?.unidades_tipo_sensor ? ` ${selected.tipo_sensor.unidades_tipo_sensor}` : ""}
-                      <div className="text-tiny mt-1">
-                        {selected.valor_minimo_sensor != null && selected.valor_maximo_sensor != null
-                          ? `Rango: ${selected.valor_minimo_sensor} – ${selected.valor_maximo_sensor}`
-                          : "Sin umbrales"}
-                      </div>
-                    </div>
-                  </CircularProgress>
-                ) : (
-                  <div className="text-default-500">Selecciona un sensor</div>
-                )}
-
-                <div className="w-full flex items-center justify-between mt-4 text-default-500">
-                  <span>0</span><span>100</span>
-                </div>
-              </div>
-            </div>
-
-            {/* DER: gráfica temporal */}
-            <div className="md:col-span-8">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-small text-default-500">
-                  {selected ? (
-                    <>
-                      <b>{selected.nombre_sensor}</b>{" "}
-                      <span className="text-default-400">· {selected.lote?.nombre_lote || selected.lote?.codigo || "—"}</span>
-                    </>
-                  ) : (
-                    "Selecciona un sensor (clic en la tabla)"
-                  )}
-                </div>
-                {selected && (
-                  <div className="text-small text-default-500">
-                    Último:{" "}
-                    <b>
-                      {selected.ultimo_valor ?? "—"}
-                      {selected.tipo_sensor?.unidades_tipo_sensor ? ` ${selected.tipo_sensor.unidades_tipo_sensor}` : ""}
-                    </b>{" "}
-                    · {selected.ultima_medicion ? new Date(selected.ultima_medicion).toLocaleString() : "—"}
-                  </div>
-                )}
-              </div>
-
-              <div className="h-60 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={selectedHistory}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={24} />
-                    <YAxis width={48} tick={{ fontSize: 11 }} allowDecimals />
-                    <RTooltip isAnimationActive={false} formatter={(v: any) => [v, "valor"]} labelFormatter={(l: string) => `Hora: ${l}`} />
-                    <Area type="monotone" dataKey="v" dot={false} isAnimationActive={false} strokeOpacity={0.9} fillOpacity={0.15} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <span className="inline-flex items-center px-2 py-1 rounded-md text-small font-medium bg-default-100 text-default-700">
+                  {unidad || "—"}
+                </span>
               </div>
             </div>
           </div>
-        </CardBody>
-
-        {/* ===== Tabla ===== */}
-        <Divider />
-        <CardBody>
-          <SensoresTable
-            data={filtered}
-            loading={lAct}
-            onCreate={() => setForm({ open: true, editing: null })}
-            onEdit={(row) => setForm({ open: true, editing: row })}
-            onRemove={async (row) => {
-              await removeSensor(row.id_sensor_pk);
-              if (selectedId === row.id_sensor_pk) setSelectedId(null);
-            }}
-            onRestore={async (row) => { await restoreSensor(row.id_sensor_pk); }}
-            onSelect={(id) => setSelectedId(id)}
-            selectedId={selectedId}
-          />
+          {unidad !== "%" && (
+            <div className="absolute bottom-6 text-tiny text-default-500">
+              {Math.round(percent)}% del rango
+            </div>
+          )}
         </CardBody>
       </Card>
 
-      {/* ===== Modal crear/editar ===== */}
-      <SensorForm
-  open={form.open}
-  onClose={() => setForm({ open: false, editing: null })}
-  onSubmit={handleSubmit}
-  initial={form.editing || undefined}
-  submitting={creating || updating}
-  onViewTipos={() => {
-  }}
-  onQuickCreateTipo={() => {
-  }}
-/>
+      {/* DERECHA: gráfica */}
+      <Card shadow="sm" className="border border-default-100 min-w-0">
+        <CardHeader className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold">
+              {selected?.tipo_sensor?.nombre_tipo_sensor || "Serie temporal"}
+            </h3>
+            <p className="text-small text-default-500">
+              Último: <span className="font-medium">{fmt(last)} {unidad || ""}</span>
+              {selected?.ultima_medicion ? (
+                <span className="text-default-400"> · {new Date(selected.ultima_medicion).toLocaleString()}</span>
+              ) : null}
+            </p>
+          </div>
+          <Chip size="sm" variant="flat">{unidad || "—"}</Chip>
+        </CardHeader>
 
+        <CardBody className={`h-[300px] md:h-[320px] ${colorClass} min-w-0 min-h-0`}>
+          <div ref={boxRef} className="w-full h-full min-w-0 min-h-0">
+            {boxReady ? (
+              <ResponsiveContainer width="100%" height="100%" debounce={80}>
+                <AreaChart
+                  data={dataForChart}
+                  onMouseMove={(state: any) => {
+                    const x = state?.activePayload?.[0]?.payload?.x; // timestamp numérico
+                    if (Number.isFinite(x)) setHoverX(x as number);
+                    // si no hay payload, NO tocar hoverX para que la línea no parpadee
+                  }}
+                  onMouseLeave={() => setHoverX(null)}
+                >
+                  <defs>
+                    <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="currentColor" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="currentColor" stopOpacity={0.06} />
+                    </linearGradient>
+                  </defs>
+
+                  {showBand && yDomain && (
+                    <ReferenceArea
+                      y1={selected!.valor_minimo_sensor!}
+                      y2={selected!.valor_maximo_sensor!}
+                      strokeOpacity={0}
+                      fill="currentColor"
+                      fillOpacity={0.08}
+                    />
+                  )}
+
+                  {/* Línea vertical persistente bajo el cursor */}
+                  {hoverX != null && (
+                    <ReferenceLine
+                      x={hoverX}
+                     
+                      stroke="currentColor"
+                      strokeOpacity={0.75}
+                      strokeWidth={1}
+                    />
+                  )}
+
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(140,140,160,.25)" vertical={false} />
+
+                  <XAxis
+                    dataKey="x"
+                    type="number"
+                    scale="time"
+                    domain={["dataMin", "dataMax"]}
+                    tickFormatter={(t: number) =>
+                      new Date(t).toLocaleTimeString([], { hour12: true, hour: "2-digit", minute: "2-digit", second: "2-digit" })
+                    }
+                    minTickGap={18}
+                    tick={{ fontSize: 11, fill: "var(--heroui-foreground-500)" }}
+                    axisLine={{ stroke: "rgba(140,140,160,.35)" }}
+                  />
+                  <YAxis
+                    domain={yDomain || ["dataMin", "dataMax"]}
+                    width={44}
+                    tickFormatter={(n: number) => `${Number(n).toFixed(decCount)}`}
+                    tick={{ fontSize: 11, fill: "var(--heroui-foreground-500)" }}
+                    axisLine={{ stroke: "rgba(140,140,160,.35)" }}
+                  />
+
+                  <RTooltip
+                    cursor={false}
+                    isAnimationActive={false}
+                    contentStyle={{
+                      background: "var(--heroui-content1)",
+                      border: "1px solid var(--heroui-default-200)",
+                      borderRadius: 12,
+                      boxShadow: "0 8px 24px rgba(0,0,0,.10)",
+                    }}
+                    labelFormatter={(t: number) => new Date(t).toLocaleString([], { hour12: true })}
+                    formatter={(val: any) => [`${Number(val).toFixed(decCount)} ${unidad}`, "Valor"]}
+                  />
+
+                  <Area
+                    type="monotone"
+                    dataKey="y"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    fill="url(#areaFill)"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+
+                  {/* Brush para navegar; si llega al borde izquierdo, pedir más historial */}
+                  <Brush
+                    dataKey="x"
+                    height={18}
+                    travellerWidth={8}
+                    stroke="rgba(140,140,160,.45)"
+                    tickFormatter={(t: number) =>
+                      new Date(t).toLocaleTimeString([], { hour12: true, minute: "2-digit", second: "2-digit" })
+                    }
+                    onChange={(range) => {
+                      if (typeof (range as any)?.startIndex === "number" && (range as any).startIndex === 0) {
+                        onRangeLeftEdge?.();
+                      }
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full animate-pulse bg-default-100 rounded-lg" />
+            )}
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

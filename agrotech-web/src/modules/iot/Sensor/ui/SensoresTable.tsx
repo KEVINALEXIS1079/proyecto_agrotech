@@ -1,200 +1,154 @@
-// src/modules/iot/Sensor/ui/SensoresTable.tsx
-import { useMemo, useState } from "react";
+// src/modules/iot/sensores/ui/SensoresTable.tsx
+import { useMemo } from "react";
 import {
-  Button,
-  Chip,
-  Input,
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
-  Tooltip,
+  Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
+  Button, Tooltip, Progress, Chip
 } from "@heroui/react";
-import { Edit3, Plus, RotateCcw, Trash2 } from "lucide-react";
-import type { Sensor } from "../model/types";
+import { Pencil, Trash2, RotateCcw } from "lucide-react";
+import type { Sensor } from "../api/sensorService";
 
-export default function SensoresTable({
-  data,
-  deleted = false,
-  onCreate,
-  onEdit,
-  onRemove,
-  onRestore,
-  loading,
-  onSelect,
-  selectedId,
-}: {
-  data: Sensor[] | undefined;
-  deleted?: boolean;
+type Props = {
+  data?: Sensor[];
+  loading?: boolean;
   onCreate?: () => void;
   onEdit?: (row: Sensor) => void;
   onRemove?: (row: Sensor) => void;
   onRestore?: (row: Sensor) => void;
   onSelect?: (id: number) => void;
   selectedId?: number | null;
-  loading?: boolean;
-}) {
-  const [q, setQ] = useState("");
+  deleted?: boolean;
+};
 
-  const filtered = useMemo(() => {
-    const txt = q.trim().toLowerCase();
-    if (!txt) return data || [];
-    return (data || []).filter((r) =>
-      [
-        r.nombre_sensor,
-        r.tipo_sensor?.nombre_tipo_sensor,
-        r.lote?.nombre_lote || r.lote?.codigo,
-        r.topico_sensor,
-        r.broker_sensor,
-        String(r.puerto_sensor),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(txt)
-    );
-  }, [data, q]);
+const toPercent = (v?: number | null, lo?: number | null, hi?: number | null) => {
+  if (v == null) return 0;
+  const a = lo ?? 0, b = hi ?? 100;
+  if (a === b) return 0;
+  return Math.max(0, Math.min(100, Math.round(((v - a) / (b - a)) * 100)));
+};
+
+const pickColor = (v?: number | null, lo?: number | null, hi?: number | null) => {
+  if (v == null) return "default" as const;
+  const a = lo ?? 0, b = hi ?? 100;
+  if (v < a || v > b) return "danger" as const;
+  const edge = (b - a || 1) * 0.1;
+  if (v - a < edge || b - v < edge) return "warning" as const;
+  return "success" as const;
+};
+
+export default function SensoresTable({
+  data = [],
+  loading,
+  onEdit,
+  onRemove,
+  onRestore,
+  onSelect,
+  selectedId,
+  deleted = false,
+}: Props) {
+  const rows = useMemo(() => data, [data]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          {!deleted && (
-            <Button color="primary" startContent={<Plus size={16} />} onPress={onCreate}>
-              Nuevo sensor
-            </Button>
-          )}
-          <Chip variant="flat" color={deleted ? "danger" : "success"}>
-            {deleted ? "Eliminados" : "Activos"}
-          </Chip>
-        </div>
+    <Table
+      aria-label="Listado de sensores"
+      selectionMode="single"
+      selectedKeys={selectedId ? new Set([String(selectedId)]) : new Set()}
+      onSelectionChange={(keys) => {
+        const id = Array.from(keys as Set<string>)[0];
+        if (id && onSelect) onSelect(Number(id));
+      }}
+      isHeaderSticky
+      removeWrapper
+    >
+      <TableHeader>
+        <TableColumn>Sensor</TableColumn>
+        <TableColumn>Tipo</TableColumn>
+        <TableColumn>Lote</TableColumn>
+        <TableColumn>Último valor</TableColumn>
+        <TableColumn>Medición</TableColumn>
+        <TableColumn>Broker</TableColumn>
+        <TableColumn>Puerto</TableColumn>
+        <TableColumn>Tópico</TableColumn>
+        <TableColumn align="center">Acciones</TableColumn>
+      </TableHeader>
 
-        <Input
-          className="max-w-xs"
-          placeholder="Buscar por nombre, tipo, lote, tópico, broker, puerto"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          isClearable
-          onClear={() => setQ("")}
-        />
-      </div>
-
-      <Table
-        aria-label="Tabla de sensores"
-        removeWrapper
-        selectionMode="single"
-        selectedKeys={selectedId ? new Set([selectedId]) : new Set()}
-        onSelectionChange={(keys) => {
-          const k = Array.from(keys as Set<React.Key>)[0];
-          if (k != null) onSelect?.(Number(k));
-        }}
+      <TableBody
+        items={rows}
+        emptyContent={loading ? "Cargando…" : "Sin sensores"}
+        isLoading={loading}
       >
-        <TableHeader>
-          <TableColumn>Sensor</TableColumn>
-          <TableColumn>Tipo</TableColumn>
-          <TableColumn>Lote</TableColumn>
-          <TableColumn>Último valor</TableColumn>
-          <TableColumn>Medición</TableColumn>
-          <TableColumn>Broker</TableColumn>
-          <TableColumn>Puerto</TableColumn>
-          <TableColumn>Tópico</TableColumn>
-          <TableColumn className="w-40 text-right">Acciones</TableColumn>
-        </TableHeader>
+        {(row) => {
+          const unidad = row.tipo_sensor?.unidades_tipo_sensor ?? "";
+          const decPattern = row.tipo_sensor?.decimales_tipo_sensor ?? "0";
+          const dot = decPattern.includes(".") ? decPattern.length - decPattern.indexOf(".") - 1 : 0;
 
-        <TableBody
-          items={filtered}
-          emptyContent={loading ? "Cargando..." : "Sin registros"}
-        >
-          {(row: Sensor) => (
-            <TableRow key={row.id_sensor_pk} className="cursor-pointer">
-              <TableCell className="font-medium">{row.nombre_sensor}</TableCell>
+          const p = toPercent(row.ultimo_valor, row.valor_minimo_sensor, row.valor_maximo_sensor);
+          const c = pickColor(row.ultimo_valor, row.valor_minimo_sensor, row.valor_maximo_sensor);
 
+          return (
+            <TableRow key={row.id_sensor_pk}>
+              <TableCell>{row.nombre_sensor}</TableCell>
               <TableCell>
-                {row.tipo_sensor?.nombre_tipo_sensor}
-                {row.tipo_sensor?.unidades_tipo_sensor ? (
-                  <span className="text-foreground-500">
-                    {" "}
-                    ({row.tipo_sensor.unidades_tipo_sensor})
-                  </span>
-                ) : null}
+                {row.tipo_sensor?.nombre_tipo_sensor ?? "—"}
+                {unidad ? <span className="text-default-500"> ({unidad})</span> : null}
               </TableCell>
-
               <TableCell>{row.lote?.nombre_lote || row.lote?.codigo || "—"}</TableCell>
 
-              <TableCell>
-                {row.ultimo_valor ?? "—"}
-                {row.tipo_sensor?.unidades_tipo_sensor ? (
-                  <span className="text-foreground-500">
-                    {" "}
-                    {row.tipo_sensor.unidades_tipo_sensor}
+              {/* Último valor + barrita de progreso */}
+              <TableCell className="min-w-[160px]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium">
+                    {row.ultimo_valor == null ? "—" : `${row.ultimo_valor.toFixed(dot)}${unidad}`}
                   </span>
-                ) : null}
+                  <Chip size="sm" variant="flat" color={c as any} className="min-w-[46px]" radius="md">
+                    {p}%
+                  </Chip>
+                </div>
+                <Progress
+                  aria-label="Porcentaje del rango"
+                  value={p}
+                  color={c as any}
+                  size="sm"
+                  showValueLabel={false}
+                  className="mt-1"
+                  classNames={{
+                    track: "h-1",
+                  }}
+                />
               </TableCell>
 
-              <TableCell className="whitespace-nowrap">
-                {row.ultima_medicion
-                  ? new Date(row.ultima_medicion).toLocaleString()
-                  : "—"}
-              </TableCell>
-
-              <TableCell className="max-w-[220px]">
-                <Tooltip content={row.broker_sensor}>
-                  <span className="truncate inline-block max-w-[210px]">
-                    {row.broker_sensor}
-                  </span>
-                </Tooltip>
-              </TableCell>
-
+              <TableCell>{row.ultima_medicion ? new Date(row.ultima_medicion).toLocaleString() : "—"}</TableCell>
+              <TableCell>{row.broker_sensor}</TableCell>
               <TableCell>{row.puerto_sensor}</TableCell>
+              <TableCell className="truncate max-w-[280px]">{row.topico_sensor}</TableCell>
 
-              <TableCell className="max-w-[220px]">
-                <Tooltip content={row.topico_sensor}>
-                  <span className="truncate inline-block max-w-[210px]">
-                    {row.topico_sensor}
-                  </span>
-                </Tooltip>
-              </TableCell>
-
-              <TableCell className="text-right">
-                {!deleted ? (
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="flat"
-                      onPress={() => onEdit?.(row)}
-                    >
-                      <Edit3 size={16} />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="flat"
-                      color="danger"
-                      onPress={() => onRemove?.(row)}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="flat"
-                      color="success"
-                      onPress={() => onRestore?.(row)}
-                    >
-                      <RotateCcw size={16} />
-                    </Button>
-                  </div>
-                )}
+              <TableCell>
+                <div className="flex gap-2 justify-end">
+                  {!deleted ? (
+                    <>
+                      <Tooltip content="Editar">
+                        <Button isIconOnly size="sm" variant="flat" onPress={() => onEdit?.(row)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip color="danger" content="Eliminar">
+                        <Button isIconOnly size="sm" variant="flat" color="danger" onPress={() => onRemove?.(row)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </Tooltip>
+                    </>
+                  ) : (
+                    <Tooltip content="Restaurar">
+                      <Button isIconOnly size="sm" variant="flat" onPress={() => onRestore?.(row)}>
+                        <RotateCcw className="w-4 h-4" />
+                      </Button>
+                    </Tooltip>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+          );
+        }}
+      </TableBody>
+    </Table>
   );
 }

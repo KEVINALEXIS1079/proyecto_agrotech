@@ -12,12 +12,14 @@ export function usePerfil() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const lastUrl = useRef<string | null>(null);
 
+  // Consulta perfil
   const { data: me, isFetching: loading } = useQuery({
     queryKey: qk.me(),
     queryFn: () => getPerfil(),
     staleTime: 60_000,
   });
 
+  // Suscripción a cambios en tiempo real
   useEffect(() => {
     if (wsBound.current) return;
     wsBound.current = true;
@@ -26,19 +28,20 @@ export function usePerfil() {
     return () => perfilService.offProfileChanged(onChange);
   }, [qc]);
 
+  // Revocar URL temporal al desmontar
   useEffect(() => {
     return () => {
       if (lastUrl.current) URL.revokeObjectURL(lastUrl.current);
     };
   }, []);
 
+  // Mutación para guardar perfil
   const { mutateAsync: save, isPending: saving } = useMutation({
-    mutationFn: (payload: UpdatePerfilInput) => savePerfil(payload), // retorna { message, me }
+    mutationFn: (payload: UpdatePerfilInput) => savePerfil(payload),
     onMutate: async (payload) => {
       await qc.cancelQueries({ queryKey: qk.me() });
       const prev = qc.getQueryData<Perfil>(qk.me());
       if (prev) {
-        // Optimista (muestra preview si es File)
         const optimistic: Perfil = {
           ...prev,
           nombre: payload.nombre ?? prev.nombre,
@@ -72,6 +75,7 @@ export function usePerfil() {
     },
   });
 
+  // Manejar selección de avatar
   const handleAvatarPick = (file: File) => {
     const url = URL.createObjectURL(file);
     if (lastUrl.current) URL.revokeObjectURL(lastUrl.current);

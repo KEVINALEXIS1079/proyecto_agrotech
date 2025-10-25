@@ -1,3 +1,2 @@
 
-
-export { default as SensoresLivePage } from "./MonitoreoPage";
+export {default as SensoresLivePage}  from "./MonitoreoPage";

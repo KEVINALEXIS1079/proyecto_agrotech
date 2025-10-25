@@ -20,7 +20,8 @@ import { PermisosGuard } from 'src/common/guard/permisos.guard';
 import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
 import { CustomFileInterceptor } from 'src/common/services/uploads/custom-file.interceptor';
 import { TipoSensorGateway } from '../gateways/tipo-sensor.gateway';
-import { TipoSensorDocs } from '../docs/tipo-sensor.docs'; 
+import { TipoSensorDocs } from '../docs/tipo-sensor.docs';
+import * as path from 'path'; 
 
 @TipoSensorDocs.Controller() 
 @Controller('tipo-sensor')
@@ -37,14 +38,17 @@ export class TipoSensorController {
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:tipo-sensor:create')
   @UseInterceptors(CustomFileInterceptor.create('imagen_tipo_sensor', 'tipo-sensor'))
-  @TipoSensorDocs.Create() //  Documentación del endpoint
+  @TipoSensorDocs.Create()
   async create(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: CreateTipoSensorDto,
   ) {
-    if (file) {
-      dto.imagen_tipo_sensor = file.path.replace(/\\/g, '/');
-    }
+    // Igual que usuarios: guardar ruta relativa limpia
+    const imgPath = file
+      ? path.relative(process.cwd(), file.path).replace(/\\/g, '/')
+      : undefined;
+
+    if (imgPath) dto.imagen_tipo_sensor = imgPath;
 
     const tipoSensor = await this.tipoSensorService.create(dto);
     this.tipoSensorGateway.notifyChanges('create', tipoSensor);
@@ -57,7 +61,7 @@ export class TipoSensorController {
   @Get()
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:tipo-sensor:read')
-  @TipoSensorDocs.FindAll() //  Documentación del endpoint
+  @TipoSensorDocs.FindAll()
   findAll() {
     return this.tipoSensorService.findAll();
   }
@@ -68,7 +72,7 @@ export class TipoSensorController {
   @Get('deleted')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:tipo-sensor:read')
-  @TipoSensorDocs.FindAllDeleted() //  Documentación del endpoint
+  @TipoSensorDocs.FindAllDeleted()
   findAllDeleted() {
     return this.tipoSensorService.findAllDeleted();
   }
@@ -79,7 +83,7 @@ export class TipoSensorController {
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:tipo-sensor:read')
-  @TipoSensorDocs.FindOne() //  Documentación del endpoint
+  @TipoSensorDocs.FindOne()
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.tipoSensorService.findOne(id);
   }
@@ -91,7 +95,7 @@ export class TipoSensorController {
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:tipo-sensor:update')
   @UseInterceptors(CustomFileInterceptor.create('imagen_tipo_sensor', 'tipo-sensor'))
-  @TipoSensorDocs.Update() //  Documentación del endpoint
+  @TipoSensorDocs.Update()
   async update(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -101,9 +105,12 @@ export class TipoSensorController {
       throw new BadRequestException('Se requiere al menos un campo para actualizar');
     }
 
-    if (file) {
-      dto.imagen_tipo_sensor = file.path.replace(/\\/g, '/');
-    }
+    // Igual que en create: normalizar ruta
+    const imgPath = file
+      ? path.relative(process.cwd(), file.path).replace(/\\/g, '/')
+      : undefined;
+
+    if (imgPath) dto.imagen_tipo_sensor = imgPath;
 
     const updated = await this.tipoSensorService.update(id, dto);
     this.tipoSensorGateway.notifyChanges('update', updated);
@@ -116,7 +123,7 @@ export class TipoSensorController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:tipo-sensor:delete')
-  @TipoSensorDocs.Remove() //  Documentación del endpoint
+  @TipoSensorDocs.Remove()
   async remove(@Param('id', ParseIntPipe) id: number) {
     const result = await this.tipoSensorService.remove(id);
     this.tipoSensorGateway.notifyChanges('delete', { id });
@@ -129,7 +136,7 @@ export class TipoSensorController {
   @Patch('restore/:id')
   @UseGuards(JwtAuthGuard, PermisosGuard)
   @PermisoRequerido('iot:tipo-sensor:update')
-  @TipoSensorDocs.Restore() //  Documentación del endpoint
+  @TipoSensorDocs.Restore()
   async restore(@Param('id', ParseIntPipe) id: number) {
     const result = await this.tipoSensorService.restore(id);
     this.tipoSensorGateway.notifyChanges('restore', { id });

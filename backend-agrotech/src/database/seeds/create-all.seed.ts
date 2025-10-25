@@ -9,6 +9,7 @@ import { TipoSensor } from '../../modules/iot/tipo-sensor/entities/tipo-sensor.e
 @Injectable()
 export class CreateAllSeeds implements OnApplicationBootstrap {
   private readonly logger = new Logger(CreateAllSeeds.name);
+  private static alreadySeeded = false; // evita doble ejecución
 
   constructor(
     @InjectRepository(Lote)
@@ -25,6 +26,15 @@ export class CreateAllSeeds implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
+    // Evita ejecutar dos veces en la misma inicialización
+    if (CreateAllSeeds.alreadySeeded) {
+      this.logger.verbose('Seeds ya ejecutadas, omitiendo...');
+      return;
+    }
+    CreateAllSeeds.alreadySeeded = true;
+
+    this.logger.log('Iniciando creación de datos base...');
+
     // ------------------------------
     // Crear Lote
     // ------------------------------
@@ -43,7 +53,7 @@ export class CreateAllSeeds implements OnApplicationBootstrap {
       lote = await this.loteRepo.save(lote);
       this.logger.log('Lote "Bloque A" creado.');
     } else {
-      this.logger.verbose('Lote "Bloque A" ya existe, omitido.');
+      this.logger.verbose('ℹLote "Bloque A" ya existe, omitido.');
     }
 
     // ------------------------------
@@ -65,11 +75,11 @@ export class CreateAllSeeds implements OnApplicationBootstrap {
       sublote = await this.subloteRepo.save(sublote);
       this.logger.log('Sublote "Bloque A1" creado.');
     } else {
-      this.logger.verbose('Sublote "Bloque A1" ya existe, omitido.');
+      this.logger.verbose('ℹSublote "Bloque A1" ya existe, omitido.');
     }
 
     // ------------------------------
-    // Crear TipoSensor
+    // Crear Tipo de Sensor
     // ------------------------------
     let tipoSensor = await this.tipoSensorRepo.findOne({ where: { nombre_tipo_sensor: 'Humedad' } });
     if (!tipoSensor) {
@@ -77,13 +87,16 @@ export class CreateAllSeeds implements OnApplicationBootstrap {
       tipoSensor = await this.tipoSensorRepo.save(tipoSensor);
       this.logger.log('Tipo de sensor "Humedad" creado.');
     } else {
-      this.logger.verbose('Tipo de sensor "Humedad" ya existe, omitido.');
+      this.logger.verbose('ℹTipo de sensor "Humedad" ya existe, omitido.');
     }
 
     // ------------------------------
-    // Crear o actualizar Sensor usando relaciones
+    // Crear o actualizar Sensor
     // ------------------------------
-    const existingSensor = await this.sensorRepo.findOne({ where: { nombre_sensor: 'Sensor Humedad A1' } });
+    const existingSensor = await this.sensorRepo.findOne({
+      where: { nombre_sensor: 'Sensor Humedad A1' },
+      withDeleted: true, // también revisa los soft delete
+    });
 
     if (!existingSensor) {
       const sensor = this.sensorRepo.create({
@@ -102,6 +115,7 @@ export class CreateAllSeeds implements OnApplicationBootstrap {
       await this.sensorRepo.save(sensor);
       this.logger.log('Sensor "Sensor Humedad A1" creado.');
     } else {
+      // actualiza si ya existe
       existingSensor.broker_sensor = 'test.mosquitto.org';
       existingSensor.puerto_sensor = 1883;
       existingSensor.topico_sensor = 'sensor/humedadSuelo';
@@ -116,5 +130,7 @@ export class CreateAllSeeds implements OnApplicationBootstrap {
       await this.sensorRepo.save(existingSensor);
       this.logger.log('Sensor "Sensor Humedad A1" actualizado correctamente.');
     }
+
+    this.logger.log('Seeds ejecutadas correctamente.');
   }
 }

@@ -1,4 +1,4 @@
-// src/modules/iot/tipo-sensor/ui/TipoSensorForm.tsx
+// src/modules/iot/TipoSensor/ui/TipoSensorForm.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
@@ -12,18 +12,26 @@ import {
   Card,
   CardBody,
   Tooltip,
+  Select,
+  SelectItem,
 } from "@heroui/react";
 import type {
   CreateTipoSensorInput,
   UpdateTipoSensorInput,
   TipoSensor,
 } from "../model/types";
+import { UNIDADES_TIPO_SENSOR, DECIMALES_TIPO_SENSOR } from "../model/constants";
 import ImagePreview from "./ImagePreview";
+import type { Key, Selection } from "@react-types/shared";
 
 export type TipoSensorFormValues = CreateTipoSensorInput;
 
 const isValidRemotePath = (s: string) =>
-  /^(https?:\/\/)/i.test(s) || /^\/?uploads\//i.test(s); // http(s) o ruta relativa del backend
+  /^(https?:\/\/)/i.test(s) || /^\/?uploads\//i.test(s);
+
+// Lo que <Select> espera: Iterable<Key> | "all" | undefined
+const asKeys = (v?: string | null): Iterable<Key> | undefined =>
+  v ? (new Set<Key>([v as Key]) as Iterable<Key>) : undefined;
 
 export default function TipoSensorForm({
   open,
@@ -40,26 +48,22 @@ export default function TipoSensorForm({
 }) {
   const [values, setValues] = useState<TipoSensorFormValues>({
     nombre_tipo_sensor: "",
-    unidades_tipo_sensor: "",
+    unidades_tipo_sensor: undefined,
     decimales_tipo_sensor: undefined,
-    imagen_tipo_sensor: null, // no lo usamos directo; controlamos con file/url
+    imagen_tipo_sensor: null,
   });
 
-  // archivo seleccionado
   const [fileObj, setFileObj] = useState<File | null>(null);
-  // url/ruta pegada (absoluta o relativa)
   const [imageUrl, setImageUrl] = useState<string>("");
   const [urlError, setUrlError] = useState<string | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset al abrir / hidratar con initial
   useEffect(() => {
     if (!open) return;
     setValues({
       nombre_tipo_sensor: initial?.nombre_tipo_sensor || "",
-      unidades_tipo_sensor: initial?.unidades_tipo_sensor || "",
-      decimales_tipo_sensor: initial?.decimales_tipo_sensor ?? undefined,
+      unidades_tipo_sensor: (initial?.unidades_tipo_sensor as any) || undefined,
+      decimales_tipo_sensor: (initial?.decimales_tipo_sensor as any) ?? undefined,
       imagen_tipo_sensor: null,
     });
     setFileObj(null);
@@ -69,9 +73,8 @@ export default function TipoSensorForm({
     setUrlError(null);
   }, [open, initial]);
 
-  // Preview preferencia: File -> URL pegada -> (fallback) initial string
   const imagePreviewSrc = useMemo(() => {
-    if (fileObj) return fileObj as unknown as File; // ImagePreview acepta File
+    if (fileObj) return fileObj as unknown as File;
     if (imageUrl?.trim()) return imageUrl.trim();
     return (typeof initial?.imagen_tipo_sensor === "string"
       ? initial?.imagen_tipo_sensor
@@ -95,7 +98,6 @@ export default function TipoSensorForm({
     const url = imageUrl.trim();
     const payload: CreateTipoSensorInput | UpdateTipoSensorInput = {
       ...values,
-      // prioridad: archivo si existe; si no, string válida; si no, undefined (mantiene actual)
       imagen_tipo_sensor: fileObj
         ? fileObj
         : url && isValidRemotePath(url)
@@ -109,7 +111,7 @@ export default function TipoSensorForm({
     <Modal
       isOpen={open}
       onOpenChange={(v) => !v && onClose()}
-      size="2xl"
+      size="3xl"
       scrollBehavior="inside"
       classNames={{ base: "max-h-[85vh]", body: "gap-5" }}
     >
@@ -119,52 +121,63 @@ export default function TipoSensorForm({
         </ModalHeader>
 
         <ModalBody>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Input
-              label="Nombre"
-              labelPlacement="outside"
-              placeholder="Temperatura, Humedad, pH, Luminosidad…"
-              value={values.nombre_tipo_sensor}
-              onChange={(e) => handleChange("nombre_tipo_sensor", e.target.value)}
-              isRequired
-            />
+          {/* Layout: izquierda (3 campos) / derecha (imagen) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* IZQUIERDA (2/3) */}
+            <div className="md:col-span-2 space-y-5">
+              <Input
+                label="Nombre"
+                labelPlacement="outside"
+                placeholder="Temperatura, Humedad, pH, Luminosidad…"
+                value={values.nombre_tipo_sensor}
+                onChange={(e) => handleChange("nombre_tipo_sensor", e.target.value)}
+                isRequired
+              />
 
-            <Input
-              label="Unidades"
-              labelPlacement="outside"
-              placeholder="°C, %, pH, lx…"
-              value={values.unidades_tipo_sensor || ""}
-              onChange={(e) => handleChange("unidades_tipo_sensor", e.target.value)}
-              description="Abreviatura que se mostrará en lecturas y gráficos."
-            />
+              <Select
+                label="Unidades"
+                labelPlacement="outside"
+                placeholder="Selecciona la unidad"
+                selectedKeys={asKeys(values.unidades_tipo_sensor ?? null)}
+                onSelectionChange={(keys: Selection) => {
+                  const set = keys === "all" ? undefined : (keys as Set<Key>);
+                  const arr = set ? Array.from(set) : [];
+                  const val = (arr[0] as string) || undefined;
+                  handleChange("unidades_tipo_sensor", val);
+                }}
+                isClearable
+              >
+                {UNIDADES_TIPO_SENSOR.map((u) => (
+                  <SelectItem key={u}>{u}</SelectItem>
+                ))}
+              </Select>
 
-            <Input
-              type="number"
-              label="Decimales"
-              labelPlacement="outside"
-              placeholder="0, 1, 2…"
-              value={values.decimales_tipo_sensor?.toString() ?? ""}
-              min={0}
-              max={6}
-              step={1}
-              onChange={(e) =>
-                handleChange(
-                  "decimales_tipo_sensor",
-                  e.target.value === ""
-                    ? undefined
-                    : Math.max(0, Math.min(6, Number(e.target.value)))
-                )
-              }
-              description="Cantidad de decimales a mostrar (0–6)."
-            />
+              <Select
+                label="Decimales"
+                labelPlacement="outside"
+                placeholder="Formato de decimales"
+                selectedKeys={asKeys(values.decimales_tipo_sensor ?? null)}
+                onSelectionChange={(keys: Selection) => {
+                  const set = keys === "all" ? undefined : (keys as Set<Key>);
+                  const arr = set ? Array.from(set) : [];
+                  const val = (arr[0] as string) || undefined;
+                  handleChange("decimales_tipo_sensor", val);
+                }}
+                isClearable
+                description="Patrón exacto usado por el backend (0, 0.0, 0.00, …)"
+              >
+                {DECIMALES_TIPO_SENSOR.map((d) => (
+                  <SelectItem key={d}>{d}</SelectItem>
+                ))}
+              </Select>
+            </div>
 
-            {/* Selector + preview de imagen */}
-            <Card shadow="sm" className="border border-default-100">
-              <CardBody className="flex items-center gap-4">
-                <div className="flex-1">
-                  <div className="text-small text-default-600 mb-1">Icono / Imagen</div>
+            {/* DERECHA (1/3) */}
+            <div className="md:col-span-1">
+              <Card shadow="sm" className="border border-default-100 h-full">
+                <CardBody className="flex flex-col gap-3">
+                  <div className="text-small text-default-600">Icono / Imagen</div>
 
-                  {/* Controles: elegir archivo + pegar URL */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <Button variant="flat" size="sm" onPress={triggerFile}>
                       Elegir imagen
@@ -172,22 +185,20 @@ export default function TipoSensorForm({
 
                     <Input
                       size="sm"
-                      placeholder="Pegar URL http(s) o ruta (uploads/...png)"
+                      placeholder="URL http(s) o uploads/...png"
                       value={imageUrl}
                       onChange={(e) => {
                         const val = e.target.value;
                         setImageUrl(val);
-                        // Validar: no aceptar rutas locales tipo C:\...
                         setUrlError(
                           val && !isValidRemotePath(val)
-                            ? "Usa URL http(s) o ruta del servidor (uploads/...). Las rutas locales C:\\ no funcionan."
+                            ? "Usa URL http(s) o ruta del servidor (uploads/...)."
                             : null
                         );
-                        if (fileObj) setFileObj(null); // prioriza URL si el usuario escribe
+                        if (fileObj) setFileObj(null);
                       }}
                       isInvalid={!!urlError}
                       errorMessage={urlError || undefined}
-                      className="min-w-[220px]"
                     />
 
                     {(fileObj || imageUrl) && (
@@ -208,32 +219,39 @@ export default function TipoSensorForm({
                       const f = e.target.files?.[0] || null;
                       setFileObj(f);
                       if (f) {
-                        setImageUrl(""); // al seleccionar archivo, vaciamos URL
+                        setImageUrl("");
                         setUrlError(null);
                       }
                     }}
                     aria-label="Seleccionar imagen del tipo de sensor"
                   />
 
-                  <div className="mt-3 flex items-center justify-center">
-                    <ImagePreview src={imagePreviewSrc || undefined} size={80} />
+                  <div className="mt-1 flex items-center justify-center">
+                    <ImagePreview src={imagePreviewSrc || undefined} size={120} />
                   </div>
 
-                  {/* Etiqueta del estado actual */}
-                  <div className="mt-2">
+                  <div>
                     {fileObj ? (
-                      <Chip size="sm" variant="flat">{fileObj.name}</Chip>
+                      <Chip size="sm" variant="flat">
+                        {fileObj.name}
+                      </Chip>
                     ) : imageUrl?.trim() ? (
-                      <Chip size="sm" variant="flat">Usando URL</Chip>
+                      <Chip size="sm" variant="flat">
+                        Usando URL
+                      </Chip>
                     ) : initial?.imagen_tipo_sensor ? (
-                      <Chip size="sm" variant="flat">Imagen actual</Chip>
+                      <Chip size="sm" variant="flat">
+                        Imagen actual
+                      </Chip>
                     ) : (
-                      <Chip size="sm" variant="flat" color="warning">Opcional</Chip>
+                      <Chip size="sm" variant="flat" color="warning">
+                        Opcional
+                      </Chip>
                     )}
                   </div>
-                </div>
-              </CardBody>
-            </Card>
+                </CardBody>
+              </Card>
+            </div>
           </div>
         </ModalBody>
 
