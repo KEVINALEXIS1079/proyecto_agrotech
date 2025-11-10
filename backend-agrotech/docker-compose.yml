@@ -1,39 +1,90 @@
-
 services:
+  # ==========================
+  # PostgreSQL
+  # ==========================
   postgres:
     image: postgres:13
     container_name: agrotech_database
-    ports:
-      - '5432:5432'
+    restart: always
     environment:
       POSTGRES_USER: agrotech
       POSTGRES_PASSWORD: 123
       POSTGRES_DB: agrotech
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # ==========================
+  # pgAdmin
+  # ==========================
   pgadmin:
     image: dpage/pgadmin4
     container_name: agrotech_pgadmin
     depends_on:
       - postgres
-    ports:
-      - '8080:80'
+    restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
-
+  # ==========================
+  # Redis
+  # ==========================
   redis:
     image: redis:7
     container_name: agrotech_redis
+    restart: always
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
 
+  # ==========================
+  # MQTT Broker (Mosquitto)
+  # ==========================
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: agrotech_mqtt
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001" # WebSocket MQTT
+    volumes:
+      - ./src/configs/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
 
+  # ==========================
+  # Backend (modo directo)
+  # ==========================
+  backend:
+    image: node:18-alpine
+    container_name: agrotech_backend
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - mqtt-broker
+    env_file:
+      - .env
+    working_dir: /usr/src/app
+    volumes:
+      - .:/usr/src/app        # monta tu código local
+    command: sh -c "npm install && npm run start:dev"
+    ports:
+      - "4001:4000"
+
+# ==========================
+# Volúmenes persistentes
+# ==========================
 volumes:
   pgdata:
   pgadmin_data:
   redis_data:
+  mosquitto_data:
+  mosquitto_log:

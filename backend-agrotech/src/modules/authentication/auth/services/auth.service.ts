@@ -14,7 +14,7 @@ export class AuthService {
       throw new Error('JWT_SECRET no está configurado en las variables de entorno.');
     }
     if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-      console.log('🔑 AuthService - JWT Secret configurado:', secret);
+      console.log('AuthService - JWT Secret configurado:', secret);
     }
   }
 
@@ -22,7 +22,7 @@ export class AuthService {
     const usuario = await this.usuariosService.findByCorreoConPermisos(correo);
     if (!usuario) {
       if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-        console.log('❌ Usuario no encontrado:', correo);
+        console.log('Usuario no encontrado:', correo);
       }
       throw new UnauthorizedException('Correo o contraseña incorrectos');
     }
@@ -30,13 +30,13 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(contrasena, usuario.contrasena_usuario);
     if (!isPasswordValid) {
       if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-        console.log('❌ Contraseña inválida para usuario:', correo);
+        console.log('Contraseña inválida para usuario:', correo);
       }
       throw new UnauthorizedException('Correo o contraseña incorrectos');
     }
 
     if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-      console.log('✅ Usuario validado correctamente:', correo);
+      console.log('Usuario validado correctamente:', correo);
     }
 
     return usuario;
@@ -61,7 +61,7 @@ export class AuthService {
 
     const permisosUsuario = this.getPermisosUsuario(usuario);
 
-    // 🔹 Payload JWT simplificado (sin permisos)
+    // Payload JWT simplificado (sin permisos)
     const payload = {
       sub: usuario.id_usuario_pk,
       correo: usuario.correo_usuario,
@@ -77,7 +77,7 @@ export class AuthService {
       console.log('✅ Token generado correctamente para:', correo);
     }
 
-    // 🔹 Permisos detallados devueltos en la respuesta (pero no dentro del JWT)
+    // Permisos detallados devueltos en la respuesta (pero no dentro del JWT)
     const permisosConEstado =
       usuario.permisos
         ?.filter((p: any) => p.activo)

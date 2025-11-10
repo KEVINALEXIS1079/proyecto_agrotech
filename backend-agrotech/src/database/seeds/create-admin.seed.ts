@@ -83,7 +83,7 @@ export class CreateAdminSeed implements OnApplicationBootstrap {
       { nombre: 'finanzas', submodulos: ['movimiento-producto', 'productos', 'ventas'] },
       { nombre: 'fitosanitario', submodulos: ['epas', 'tipo-epas'] },
       { nombre: 'inventario', submodulos: ['almacenes', 'categorias', 'insumo-proveedor', 'insumos', 'movimientos'] },
-      { nombre: 'iot', submodulos: ['sensores', 'tipo-sensores'] },
+      { nombre: 'iot', submodulos: ['sensores', 'tipo-sensor'] },
       { nombre: 'usuario', submodulos: ['roles', 'usuarios'] },
     ];
 

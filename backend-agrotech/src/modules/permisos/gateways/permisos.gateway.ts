@@ -33,12 +33,12 @@ export class PermisosGateway {
   // === Catálogo ===
   @SubscribeMessage('find_all')
   async findAll(@MessageBody() payload?: { moduleId?: number }): Promise<WsRes> {
-    this.logger.log(`📩 WS permisos:find_all - moduleId: ${payload?.moduleId ?? 'none'}`);
+    this.logger.log(` WS permisos:find_all - moduleId: ${payload?.moduleId ?? 'none'}`);
     try {
       const result = await this.permisosService.findAll(payload?.moduleId);
       return { ok: true, data: result };
     } catch (error: any) {
-      this.logger.error('❌ Error listando permisos', error.stack);
+      this.logger.error(' Error listando permisos', error.stack);
       return { ok: false, error: error.message, status: error.status };
     }
   }
@@ -48,12 +48,12 @@ export class PermisosGateway {
   @PermisoRequerido('usuario:create')
   @SubscribeMessage('create')
   async create(@MessageBody() createDto: CreatePermisoDto): Promise<WsRes> {
-    this.logger.log(`📩 WS permisos:create - Body: ${JSON.stringify(createDto)}`);
+    this.logger.log(` WS permisos:create - Body: ${JSON.stringify(createDto)}`);
     try {
       const result = await this.permisosService.create(createDto);
       return { ok: true, data: result, message: 'Permiso creado exitosamente.' };
     } catch (error: any) {
-      this.logger.error('❌ Error creando permiso', error.stack);
+      this.logger.error(' Error creando permiso', error.stack);
       return { ok: false, error: error.message, status: error.status };
     }
   }

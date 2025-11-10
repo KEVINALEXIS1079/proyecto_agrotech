@@ -59,6 +59,18 @@ export class Sensor {
   })
   estado_sensor: 'conectado' | 'desconectado';
 
+
+  // ------------------------
+  // Manejo de protocolos
+  // ------------------------
+  @Column({
+    type: 'enum',
+    enum: ['HTTP', 'HTTPS', 'WebSocket', 'MQTT'],
+    default: 'MQTT',
+    comment: 'Protocolo de comunicación del sensor',
+  })
+  protocolo_sensor: 'HTTP' | 'HTTPS' | 'WebSocket' | 'MQTT';
+
   // ------------------------
   // Relación con Lote
   // ------------------------

@@ -14,7 +14,7 @@ import { CreateSensorDto } from '../dto/create-sensor.dto';
 import { UpdateSensorDto } from '../dto/update-sensor.dto';
 import { TipoSensor } from '../../tipo-sensor/entities/tipo-sensor.entity';
 import { Lote } from 'src/modules/cultivo/lotes/entities/lote.entity';
-import { MqttService } from 'src/common/services/mqtt/services/mqtt.service';
+import { MqttService } from 'src/common/services/protocols/services/mqtt.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SensorLectura } from '../entities/sensorLectura.entity';
 
@@ -287,5 +287,18 @@ export class SensoresService implements OnModuleInit {
 
     return this.sensorRepository.save(sensor);
   }
+
+  // ===============================
+// Actualizar protocolo a todos los sensores
+// ===============================
+async updateAllProtocols(protocol: 'HTTP' | 'HTTPS' | 'WebSocket' | 'MQTT') {
+  const sensores = await this.sensorRepository.find();
+  for (const sensor of sensores) {
+    sensor.protocolo_sensor = protocol;
+  }
+  await this.sensorRepository.save(sensores);
+  this.logger.log(`Todos los sensores actualizados al protocolo ${protocol}`);
+}
+
 }
 

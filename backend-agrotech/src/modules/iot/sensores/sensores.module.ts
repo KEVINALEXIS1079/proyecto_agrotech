@@ -10,14 +10,14 @@ import { Lote } from 'src/modules/cultivo/lotes/entities/lote.entity';
 import { TipoSensor } from '../tipo-sensor/entities/tipo-sensor.entity';
 
 import { UsuariosModule } from 'src/modules/usuario/usuarios/usuarios.module';
-import { MqttModule } from 'src/common/services/mqtt/mqtt.module';
+import { ProtocolsModule } from 'src/common/services/protocols/protocols.module';
 import { SensorLectura } from './entities/sensorLectura.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Sensor, Lote, TipoSensor, SensorLectura]),
     UsuariosModule,
-    forwardRef(() => MqttModule), // rompe la circularidad
+    forwardRef(() => ProtocolsModule), // rompe la circularidad
   ],
   controllers: [SensoresController],
   providers: [SensoresService, SensoresGateway], // Gateway normal

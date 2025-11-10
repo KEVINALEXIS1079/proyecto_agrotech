@@ -21,7 +21,7 @@ import { JwtAuthGuard } from 'src/common/guard/jwt-auth.guard';
 import { PermisosGuard } from 'src/common/guard/permisos.guard';
 import { PermisoRequerido } from 'src/common/decorator/permisos.decorator';
 
-@ApiTags('permisos')
+@ApiTags('permisos')/* Expone el enpoind===> recibir y enviar consultas https */
 @Controller('permisos')
 export class PermisosController {
   private readonly logger = new Logger(PermisosController.name);

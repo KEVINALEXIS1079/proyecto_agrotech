@@ -28,7 +28,7 @@ import {
 } from '@nestjs/swagger';
 import { SensoresDocs } from '../docs/sensores.docs';
 
-@ApiTags('Sensores')
+@ApiTags('Sensores') /* http:/localhost:4000/api/v1/sensores */
 @ApiBearerAuth('access-token')
 @Controller('sensores')
 export class SensoresController {

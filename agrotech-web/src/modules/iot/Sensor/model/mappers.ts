@@ -1,4 +1,4 @@
-import type { Sensor, SensorDTO } from "./types";
+import type { Sensor, S                                                                                                                                                                                                                                     rom "./types";
 
 /**
  * Mapea el formato que viene del backend al formato del frontend.

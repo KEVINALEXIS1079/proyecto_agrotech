@@ -1,5 +1,5 @@
 // src/modules/iot/sensores/dto/create-sensor.dto.ts
-import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateSensorDto {
@@ -27,6 +27,9 @@ export class CreateSensorDto {
   @IsBoolean()
   @IsOptional()
   activo?: boolean = true;
+
+  @IsEnum(['HTTP', 'HTTPS', 'WebSocket', 'MQTT'])
+  protocolo_sensor: 'HTTP' | 'HTTPS' | 'WebSocket' | 'MQTT';
 
   @IsNumber()
   @Type(() => Number)
