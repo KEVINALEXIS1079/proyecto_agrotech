@@ -1,0 +1,1 @@
+export default function ListaPageFito() { return <div className='p-6'>Fitosanitario Lista</div> }
