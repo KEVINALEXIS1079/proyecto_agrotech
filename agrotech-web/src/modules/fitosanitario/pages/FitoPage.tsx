@@ -1,0 +1,1 @@
+export default function FitoPage() { return <div className='p-6'>Fitosanitario</div> }

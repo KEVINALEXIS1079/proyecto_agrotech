@@ -1,0 +1,1 @@
+export default function EditarPageFito() { return <div className='p-6'>Fitosanitario Editar</div> }

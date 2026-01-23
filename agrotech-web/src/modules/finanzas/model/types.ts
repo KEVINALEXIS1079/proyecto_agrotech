@@ -1,0 +1,1 @@
+/* tipos UI del dominio */
